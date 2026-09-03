@@ -553,9 +553,9 @@ export function App() {
         color: 'emerald',
         createdAt: new Date().toLocaleDateString('pt-BR'),
         updatedAt: new Date().toLocaleDateString('pt-BR'),
-        tags: ['PDV', 'Venda'],
+        tags: ['Comercial', 'Venda'],
         data: {
-          clientName: saleData.customer ? saleData.customer.name : 'Venda Balcão',
+          clientName: saleData.customer ? saleData.customer.name : 'Venda Direta / Balcão',
           deadline: new Date().toLocaleDateString('pt-BR'),
           value: saleData.total,
           details: `Pagamento: ${saleData.paymentMethod}\nItens: ${saleData.items.reduce((a: number, b: any) => a + b.quantity, 0)}`,
@@ -590,14 +590,14 @@ export function App() {
           color: 'indigo',
           createdAt: new Date().toLocaleDateString('pt-BR'),
           updatedAt: new Date().toLocaleDateString('pt-BR'),
-          tags: ['Produto', item.category, 'PDV'],
+          tags: ['Produto', item.category, 'Comercial'],
           data: {
-            sku: `PDV-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
+            sku: `PED-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
             productionStep: 'Separação/Estoque',
             responsible: 'Equipe de Expedição',
             progress: 0,
             qualityCheck: false,
-            notes: `Venda via PDV. Quantidade: ${item.quantity}\nValor Total: R$ ${(item.unitPrice * item.quantity).toFixed(2)}\n${item.description || ''}`,
+            notes: `Venda via Terminal Comercial. Quantidade: ${item.quantity}\nValor Total: R$ ${(item.unitPrice * item.quantity).toFixed(2)}\n${item.description || ''}`,
           },
         };
         
@@ -2379,25 +2379,15 @@ export function App() {
             </button>
 
             {/* Emitir Nota Fiscal Button */}
-            {/* Botão PDV */}
+            {/* Botão Terminal Comercial */}
             <button
-              id="nav-btn-pdv"
+              id="nav-btn-commercial"
               onClick={() => setIsCommercialTerminalOpen(true)}
               className="flex items-center gap-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 hover:text-blue-200 px-3 py-1.5 rounded-lg text-xs font-semibold border border-blue-500/30 transition-all shadow-sm whitespace-nowrap shrink-0 cursor-pointer"
-              title="Terminal Comercial (PDV)"
+              title="Terminal Comercial (Vendas e Pedidos)"
             >
               <ShoppingCart className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-              <span className="hidden sm:inline">PDV (Vendas)</span>
-            </button>
-
-            <button
-              id="nav-btn-invoice"
-              onClick={() => handleOpenInvoiceModal()}
-              className="flex items-center gap-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 hover:text-emerald-200 px-3 py-1.5 rounded-lg text-xs font-semibold border border-emerald-500/30 transition-all shadow-sm whitespace-nowrap shrink-0 cursor-pointer"
-              title="Emissão e Gestão de Notas Fiscais Eletrônicas (NF-e)"
-            >
-              <Receipt className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              <span className="hidden sm:inline">Emitir NF-e</span>
+              <span className="hidden sm:inline">Terminal Comercial</span>
             </button>
 
             {/* Botão de Salvar */}
@@ -2880,7 +2870,7 @@ export function App() {
         onLinkProductsToProduct={handleLinkProductsToProduct}
       />
 
-      {/* Terminal PDV Comercial */}
+      {/* Terminal Comercial */}
       <CommercialTerminalModal
         isOpen={isCommercialTerminalOpen}
         onClose={() => setIsCommercialTerminalOpen(false)}

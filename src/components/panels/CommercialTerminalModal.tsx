@@ -116,8 +116,8 @@ export const CommercialTerminalModal: React.FC<CommercialTerminalModalProps> = (
               <ShoppingCart className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg md:text-xl font-bold text-white tracking-tight">Terminal Comercial (PDV)</h2>
-              <p className="text-xs text-slate-400">Frente de Caixa Avançado</p>
+              <h2 className="text-lg md:text-xl font-bold text-white tracking-tight">Terminal Comercial</h2>
+              <p className="text-xs text-slate-400">Lançamento de Vendas e Pedidos Industriais</p>
             </div>
           </div>
           

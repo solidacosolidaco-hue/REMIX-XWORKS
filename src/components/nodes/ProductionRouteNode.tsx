@@ -12,7 +12,10 @@ import {
   Layers, 
   ArrowRight,
   PlayCircle,
-  Timer
+  Timer,
+  Edit2,
+  Check,
+  X
 } from 'lucide-react';
 import { CanvasNode, ProductionRouteStep } from '../../types/canvas';
 import { NodeTimeFrame } from '../common/NodeTimeFrame';
@@ -33,6 +36,10 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
   const [titleInput, setTitleInput] = useState(node.name || 'Roteiro de Produção');
   const [isAddingStep, setIsAddingStep] = useState(false);
   const [editingStepId, setEditingStepId] = useState<string | null>(null);
+  const [editStepData, setEditStepData] = useState<ProductionRouteStep | null>(null);
+
+  const [isEditingTarget, setIsEditingTarget] = useState(false);
+  const [targetInput, setTargetInput] = useState(node.data.productTarget || 'Produto / Peça Industrial');
 
   // New step form state
   const [newStepName, setNewStepName] = useState('');
@@ -117,6 +124,13 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
     }
   };
 
+  const handleTargetSubmit = () => {
+    setIsEditingTarget(false);
+    if (onUpdateData) {
+      onUpdateData(node.id, { productTarget: targetInput.trim() || 'Produto / Peça Industrial' });
+    }
+  };
+
   const handleUpdateSteps = (newSteps: ProductionRouteStep[]) => {
     if (!onUpdateData) return;
     const completedCount = newSteps.filter((s) => s.status === 'Concluído').length;
@@ -127,6 +141,19 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
       overallRouteProgress: calculatedProgress,
       progressPercent: calculatedProgress,
     });
+  };
+
+  const startEditingStep = (step: ProductionRouteStep) => {
+    setEditingStepId(step.id);
+    setEditStepData({ ...step });
+  };
+
+  const saveEditingStep = () => {
+    if (!editStepData) return;
+    const updated = steps.map((s) => (s.id === editStepData.id ? editStepData : s));
+    handleUpdateSteps(updated);
+    setEditingStepId(null);
+    setEditStepData(null);
   };
 
   const handleToggleStepStatus = (stepId: string) => {
@@ -150,16 +177,6 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
       return st;
     });
 
-    handleUpdateSteps(updated);
-  };
-
-  const handleUpdateStepDate = (stepId: string, field: 'startDate' | 'deadline', value: string) => {
-    const updated = steps.map((st) => {
-      if (st.id === stepId) {
-        return { ...st, [field]: value };
-      }
-      return st;
-    });
     handleUpdateSteps(updated);
   };
 
@@ -289,7 +306,30 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
 
           <div className="flex items-center gap-1.5 text-[11px] text-cyan-200/80 font-mono mt-0.5">
             <Layers className="w-3 h-3 text-cyan-400 shrink-0" />
-            <span className="truncate">Peça/Produto: <strong className="text-white">{productTarget}</strong></span>
+            {isEditingTarget ? (
+              <input
+                type="text"
+                autoFocus
+                value={targetInput}
+                onChange={(e) => setTargetInput(e.target.value)}
+                onBlur={handleTargetSubmit}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleTargetSubmit();
+                }}
+                className="bg-slate-950 border border-cyan-500/50 rounded px-1.5 py-0.5 text-xs text-white focus:outline-none w-full"
+              />
+            ) : (
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsEditingTarget(true);
+                }}
+                className="truncate cursor-pointer hover:underline hover:text-white"
+                title="Clique para editar a Peça / Produto"
+              >
+                Peça/Produto: <strong className="text-white">{productTarget}</strong>
+              </span>
+            )}
           </div>
         </div>
 
@@ -329,7 +369,7 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
           </span>
           <button
             onClick={() => setIsAddingStep(!isAddingStep)}
-            className="flex items-center gap-1 text-[10px] font-medium text-cyan-400 hover:text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 px-2 py-0.5 rounded border border-cyan-500/30 transition-all"
+            className="flex items-center gap-1 text-[10px] font-medium text-cyan-400 hover:text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 px-2 py-0.5 rounded border border-cyan-500/30 transition-all cursor-pointer"
             title="Adicionar nova operação com datas ao roteiro"
           >
             <Plus className="w-3 h-3" />
@@ -405,14 +445,14 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
               <button
                 type="button"
                 onClick={() => setIsAddingStep(false)}
-                className="text-[10px] text-slate-400 hover:text-white px-2 py-1"
+                className="text-[10px] text-slate-400 hover:text-white px-2 py-1 cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={handleAddNewStep}
-                className="text-[10px] font-bold bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1 rounded shadow"
+                className="text-[10px] font-bold bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1 rounded shadow cursor-pointer"
               >
                 Confirmar Etapa
               </button>
@@ -422,9 +462,9 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
 
         {/* Steps List */}
         <div className="space-y-2">
-          {steps.map((step, idx) => {
+          {steps.map((step) => {
             const deadlineInfo = getStepDeadlineInfo(step);
-            const isEditingDates = editingStepId === step.id;
+            const isEditingThisStep = editingStepId === step.id && editStepData !== null;
 
             return (
               <div
@@ -439,90 +479,200 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
                     : 'bg-slate-950/50 border-white/5'
                 }`}
               >
-                {/* Step Top Row: Sequence, Name & Status Button */}
-                <div className="flex items-start justify-between gap-2 mb-1.5">
-                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                    <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 bg-slate-800 text-cyan-300 rounded border border-white/5 shrink-0">
-                      OP-{step.sequence}
-                    </span>
-                    <span className={`text-xs font-semibold truncate ${
-                      step.status === 'Concluído' ? 'line-through text-slate-400' : 'text-slate-200'
-                    }`}>
-                      {step.name}
-                    </span>
-                  </div>
-
-                  {/* Status Toggle Button */}
-                  <button
-                    onClick={() => handleToggleStepStatus(step.id)}
-                    className={`text-[9px] font-bold px-2 py-0.5 rounded-full border shrink-0 transition-all flex items-center gap-1 ${
-                      step.status === 'Concluído'
-                        ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25'
-                        : step.status === 'Em Andamento'
-                        ? 'bg-blue-500/15 border-blue-500/40 text-blue-300 hover:bg-blue-500/25'
-                        : step.status === 'Atrasado'
-                        ? 'bg-rose-500/15 border-rose-500/40 text-rose-300 hover:bg-rose-500/25 animate-pulse'
-                        : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
-                    }`}
-                    title="Clique para avançar o status desta etapa"
+                {isEditingThisStep ? (
+                  /* Form de Edição Completo do Item / Etapa */
+                  <div
+                    className="space-y-2 bg-slate-950 p-2.5 rounded-lg border border-cyan-500/50"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    {step.status === 'Concluído' && <CheckCircle2 className="w-2.5 h-2.5" />}
-                    {step.status === 'Em Andamento' && <PlayCircle className="w-2.5 h-2.5 animate-spin" />}
-                    {step.status === 'Atrasado' && <AlertCircle className="w-2.5 h-2.5" />}
-                    <span>{step.status}</span>
-                  </button>
-                </div>
-
-                {/* Step Middle Row: Machine, Operator, Estimated Time */}
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-400 font-mono mb-2">
-                  <div className="flex items-center gap-1 text-slate-300">
-                    <Cpu className="w-3 h-3 text-cyan-400 shrink-0" />
-                    <span className="truncate max-w-[140px]">{step.machineOrWorkcenter || 'Centro de Trabalho'}</span>
-                  </div>
-                  <div className="flex items-center gap-1 text-slate-400">
-                    <User className="w-3 h-3 text-slate-500 shrink-0" />
-                    <span className="truncate max-w-[110px]">{step.operator || 'Operador'}</span>
-                  </div>
-                  {step.estimatedHours && (
-                    <span className="text-slate-500">
-                      • {step.estimatedHours}h
-                    </span>
-                  )}
-                </div>
-
-                {/* Step Bottom Row: Dates & Deadlines */}
-                <div className="pt-1.5 border-t border-white/5 flex items-center justify-between gap-2 text-[10px] font-mono">
-                  {isEditingDates ? (
-                    <div className="flex items-center gap-1.5 w-full bg-slate-900 p-1.5 rounded border border-cyan-500/30">
-                      <div className="flex-1">
-                        <span className="text-[8px] text-slate-400 block leading-none">Início:</span>
+                    <div className="flex items-center justify-between text-[10px] font-bold text-cyan-300">
+                      <span>EDITAR ETAPA / OPERAÇÃO</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-slate-400">OP-</span>
                         <input
-                          type="date"
-                          value={step.startDate || ''}
-                          onChange={(e) => handleUpdateStepDate(step.id, 'startDate', e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-[9px] text-white"
+                          type="number"
+                          value={editStepData.sequence}
+                          onChange={(e) => setEditStepData({ ...editStepData, sequence: Number(e.target.value) })}
+                          className="w-14 bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-xs text-white font-mono"
                         />
                       </div>
-                      <div className="flex-1">
-                        <span className="text-[8px] text-slate-400 block leading-none">Prazo:</span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[9px] uppercase text-slate-400 block font-bold">Nome da Operação</label>
+                      <input
+                        type="text"
+                        value={editStepData.name}
+                        onChange={(e) => setEditStepData({ ...editStepData, name: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-cyan-400"
+                        placeholder="Nome da Operação"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <div>
+                        <label className="text-[9px] uppercase text-slate-400 block font-bold">Máquina / Centro</label>
                         <input
-                          type="date"
-                          value={step.deadline || ''}
-                          onChange={(e) => handleUpdateStepDate(step.id, 'deadline', e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-[9px] text-white"
+                          type="text"
+                          value={editStepData.machineOrWorkcenter || ''}
+                          onChange={(e) => setEditStepData({ ...editStepData, machineOrWorkcenter: e.target.value })}
+                          className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-[11px] text-white focus:outline-none focus:border-cyan-400"
+                          placeholder="Centro de Trabalho"
                         />
                       </div>
-                      <button
-                        onClick={() => setEditingStepId(null)}
-                        className="text-[9px] bg-cyan-600 hover:bg-cyan-500 text-white px-2 py-1 rounded font-sans self-end"
+                      <div>
+                        <label className="text-[9px] uppercase text-slate-400 block font-bold">Operador / Resp.</label>
+                        <input
+                          type="text"
+                          value={editStepData.operator || ''}
+                          onChange={(e) => setEditStepData({ ...editStepData, operator: e.target.value })}
+                          className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-[11px] text-white focus:outline-none focus:border-cyan-400"
+                          placeholder="Operador"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-1.5 text-[10px]">
+                      <div>
+                        <label className="text-slate-400 block mb-0.5">Data Início</label>
+                        <input
+                          type="date"
+                          value={editStepData.startDate || ''}
+                          onChange={(e) => setEditStepData({ ...editStepData, startDate: e.target.value })}
+                          className="w-full bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-[10px] text-slate-200"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-400 block mb-0.5">Prazo Final</label>
+                        <input
+                          type="date"
+                          value={editStepData.deadline || ''}
+                          onChange={(e) => setEditStepData({ ...editStepData, deadline: e.target.value })}
+                          className="w-full bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-[10px] text-slate-200"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-400 block mb-0.5">Horas Est.</label>
+                        <input
+                          type="number"
+                          value={editStepData.estimatedHours || 0}
+                          onChange={(e) => setEditStepData({ ...editStepData, estimatedHours: Number(e.target.value) })}
+                          className="w-full bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-[10px] text-slate-200 font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[9px] uppercase text-slate-400 block font-bold">Status da Etapa</label>
+                      <select
+                        value={editStepData.status}
+                        onChange={(e) => setEditStepData({ ...editStepData, status: e.target.value as any })}
+                        className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white"
                       >
-                        OK
+                        <option value="Pendente">Pendente</option>
+                        <option value="Em Andamento">Em Andamento</option>
+                        <option value="Concluído">Concluído</option>
+                        <option value="Atrasado">Atrasado</option>
+                      </select>
+                    </div>
+
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={saveEditingStep}
+                        className="flex-1 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded text-[10px] font-bold flex items-center justify-center gap-1 cursor-pointer"
+                      >
+                        <Check className="w-3 h-3" />
+                        <span>SALVAR ETAPA</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingStepId(null);
+                          setEditStepData(null);
+                        }}
+                        className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px] font-bold flex items-center justify-center gap-1 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                        <span>CANCELAR</span>
                       </button>
                     </div>
-                  ) : (
-                    <>
+                  </div>
+                ) : (
+                  /* Visualização Normal do Item / Etapa */
+                  <>
+                    {/* Step Top Row: Sequence, Name, Edit Button & Status Button */}
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <div
+                        onClick={() => startEditingStep(step)}
+                        className="flex items-center gap-1.5 flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity group/stephead"
+                        title="Clique para editar este item / operação"
+                      >
+                        <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 bg-slate-800 text-cyan-300 rounded border border-white/5 shrink-0 group-hover/stephead:border-cyan-500">
+                          OP-{step.sequence}
+                        </span>
+                        <span className={`text-xs font-semibold truncate ${
+                          step.status === 'Concluído' ? 'line-through text-slate-400' : 'text-slate-200'
+                        }`}>
+                          {step.name}
+                        </span>
+                        <Edit2 className="w-3 h-3 text-cyan-400 opacity-0 group-hover/stephead:opacity-100 transition-opacity shrink-0 ml-1" />
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => startEditingStep(step)}
+                          className="p-1 text-slate-500 hover:text-cyan-300 hover:bg-cyan-500/10 rounded transition-colors"
+                          title="Editar todos os campos desta etapa"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                        </button>
+
+                        {/* Status Toggle Button */}
+                        <button
+                          onClick={() => handleToggleStepStatus(step.id)}
+                          className={`text-[9px] font-bold px-2 py-0.5 rounded-full border shrink-0 transition-all flex items-center gap-1 ${
+                            step.status === 'Concluído'
+                              ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25'
+                              : step.status === 'Em Andamento'
+                              ? 'bg-blue-500/15 border-blue-500/40 text-blue-300 hover:bg-blue-500/25'
+                              : step.status === 'Atrasado'
+                              ? 'bg-rose-500/15 border-rose-500/40 text-rose-300 hover:bg-rose-500/25 animate-pulse'
+                              : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
+                          }`}
+                          title="Clique para avançar o status desta etapa"
+                        >
+                          {step.status === 'Concluído' && <CheckCircle2 className="w-2.5 h-2.5" />}
+                          {step.status === 'Em Andamento' && <PlayCircle className="w-2.5 h-2.5 animate-spin" />}
+                          {step.status === 'Atrasado' && <AlertCircle className="w-2.5 h-2.5" />}
+                          <span>{step.status}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Step Middle Row: Machine, Operator, Estimated Time */}
+                    <div
+                      onClick={() => startEditingStep(step)}
+                      className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-400 font-mono mb-2 cursor-pointer hover:text-slate-200 transition-colors"
+                      title="Clique para editar máquinas, operador ou horas"
+                    >
+                      <div className="flex items-center gap-1 text-slate-300">
+                        <Cpu className="w-3 h-3 text-cyan-400 shrink-0" />
+                        <span className="truncate max-w-[140px]">{step.machineOrWorkcenter || 'Centro de Trabalho'}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-slate-400">
+                        <User className="w-3 h-3 text-slate-500 shrink-0" />
+                        <span className="truncate max-w-[110px]">{step.operator || 'Operador'}</span>
+                      </div>
+                      {step.estimatedHours !== undefined && (
+                        <span className="text-slate-400 font-bold">
+                          • {step.estimatedHours}h
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Step Bottom Row: Dates & Deadlines */}
+                    <div className="pt-1.5 border-t border-white/5 flex items-center justify-between gap-2 text-[10px] font-mono">
                       <div 
-                        onClick={() => setEditingStepId(step.id)}
+                        onClick={() => startEditingStep(step)}
                         className="flex items-center gap-2 cursor-pointer hover:text-cyan-300 transition-colors group/dates"
                         title="Clique para alterar as datas desta operação"
                       >
@@ -532,9 +682,6 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
                           <ArrowRight className="w-2.5 h-2.5 text-slate-500" />
                           <span className="font-bold text-white">{step.deadline ? new Date(step.deadline + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '--/--'}</span>
                         </div>
-                        <span className="text-[9px] text-cyan-400 opacity-0 group-hover/dates:opacity-100 transition-opacity">
-                          (editar)
-                        </span>
                       </div>
 
                       <div className="flex items-center gap-1.5">
@@ -550,9 +697,9 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
                           <Trash2 className="w-3 h-3" />
                         </button>
                       </div>
-                    </>
-                  )}
-                </div>
+                    </div>
+                  </>
+                )}
               </div>
             );
           })}
@@ -570,3 +717,4 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
     </div>
   );
 };
+

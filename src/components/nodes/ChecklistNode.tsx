@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CanvasNode, ChecklistItem } from '../../types/canvas';
-import { CheckSquare, Plus, Trash2, CheckCircle2 } from 'lucide-react';
+import { CheckSquare, Plus, Trash2, CheckCircle2, Edit2, Check } from 'lucide-react';
 import { NodeProgressBar } from '../common/NodeProgressBar';
 import { NodeTimeFrame } from '../common/NodeTimeFrame';
 
@@ -19,6 +19,8 @@ export const ChecklistNode: React.FC<ChecklistNodeProps> = ({
   const [isAdding, setIsAdding] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState(node.name || 'Checklist');
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editingItemText, setEditingItemText] = useState('');
 
   const items: ChecklistItem[] = node.data.items || [];
   const completedCount = items.filter((i) => i.checked).length;
@@ -46,6 +48,20 @@ export const ChecklistNode: React.FC<ChecklistNodeProps> = ({
     onUpdateData(node.id, { items: updated, progressPercent: newPct, currentValue: newPct });
     setNewItemText('');
     setIsAdding(false);
+  };
+
+  const startEditingItem = (item: ChecklistItem) => {
+    setEditingItemId(item.id);
+    setEditingItemText(item.text);
+  };
+
+  const saveEditingItem = (itemId: string) => {
+    if (!editingItemText.trim()) return;
+    const updated = items.map((i) =>
+      i.id === itemId ? { ...i, text: editingItemText.trim() } : i
+    );
+    onUpdateData(node.id, { items: updated });
+    setEditingItemId(null);
   };
 
   const removeItem = (itemId: string) => {
@@ -130,40 +146,78 @@ export const ChecklistNode: React.FC<ChecklistNodeProps> = ({
 
         {/* Checklist Items List */}
         <div className="space-y-1.5 my-3 max-h-[220px] overflow-y-auto pr-1">
-          {items.map((item) => (
-            <div
-              key={item.id}
-              className={`group/item flex items-center justify-between p-2 rounded-lg border transition-all text-xs ${
-                item.checked
-                  ? 'bg-slate-950/40 border-slate-800/60 text-slate-500 line-through'
-                  : 'bg-slate-800/40 border-slate-700/50 text-slate-200 hover:bg-slate-800/70 hover:border-slate-600'
-              }`}
-            >
-              <div
-                onClick={() => toggleItem(item.id)}
-                className="flex items-center gap-2 cursor-pointer flex-1 min-w-0"
-              >
-                <div
-                  className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${
-                    item.checked
-                      ? 'bg-emerald-500 border-emerald-400 text-slate-950'
-                      : 'border-slate-600 hover:border-slate-400'
-                  }`}
-                >
-                  {item.checked && <CheckCircle2 className="w-3.5 h-3.5 stroke-[3]" />}
-                </div>
-                <span className="truncate">{item.text}</span>
-              </div>
+          {items.map((item) => {
+            const isEditingThisItem = editingItemId === item.id;
 
-              <button
-                onClick={() => removeItem(item.id)}
-                className="opacity-0 group-hover/item:opacity-100 p-1 text-slate-500 hover:text-rose-400 transition-opacity"
-                title="Remover item"
+            return (
+              <div
+                key={item.id}
+                className={`group/item flex items-center justify-between p-2 rounded-lg border transition-all text-xs ${
+                  item.checked
+                    ? 'bg-slate-950/40 border-slate-800/60 text-slate-500 line-through'
+                    : 'bg-slate-800/40 border-slate-700/50 text-slate-200 hover:bg-slate-800/70 hover:border-slate-600'
+                }`}
               >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ))}
+                {isEditingThisItem ? (
+                  <div className="flex items-center gap-1.5 w-full">
+                    <input
+                      type="text"
+                      autoFocus
+                      value={editingItemText}
+                      onChange={(e) => setEditingItemText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') saveEditingItem(item.id);
+                        if (e.key === 'Escape') setEditingItemId(null);
+                      }}
+                      className="flex-1 bg-slate-950 border border-emerald-500/50 rounded px-2 py-0.5 text-xs text-white focus:outline-none"
+                    />
+                    <button
+                      onClick={() => saveEditingItem(item.id)}
+                      className="p-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded cursor-pointer"
+                      title="Salvar"
+                    >
+                      <Check className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div
+                      onClick={() => toggleItem(item.id)}
+                      className="flex items-center gap-2 cursor-pointer flex-1 min-w-0"
+                    >
+                      <div
+                        className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${
+                          item.checked
+                            ? 'bg-emerald-500 border-emerald-400 text-slate-950'
+                            : 'border-slate-600 hover:border-slate-400'
+                        }`}
+                      >
+                        {item.checked && <CheckCircle2 className="w-3.5 h-3.5 stroke-[3]" />}
+                      </div>
+                      <span className="truncate">{item.text}</span>
+                    </div>
+
+                    <div className="flex items-center gap-1 opacity-0 group-hover/item:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => startEditingItem(item)}
+                        className="p-1 text-slate-500 hover:text-emerald-400 transition-colors"
+                        title="Editar item"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => removeItem(item.id)}
+                        className="p-1 text-slate-500 hover:text-rose-400 transition-colors"
+                        title="Remover item"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
