@@ -84,6 +84,64 @@ function getNodeSectorName(node: CanvasNode, sectorNodes: CanvasNode[]): string 
   return 'Geral';
 }
 
+function getSalesOrderForNode(node: CanvasNode, allNodes: CanvasNode[], connections: Connection[]): string {
+  // Direct fields on node
+  const directCode = 
+    node.data?.salesOrderNumber ||
+    node.data?.orderCode ||
+    node.data?.salesOrder ||
+    node.data?.pedido ||
+    node.data?.ped ||
+    node.data?.orderNumber;
+
+  if (directCode && String(directCode).trim()) {
+    return String(directCode).trim();
+  }
+
+  // Node type fallbacks
+  if (node.type === 'order') {
+    return String(node.data?.salesOrderNumber || node.data?.orderCode || node.name || 'PED-S/N');
+  }
+  if (node.type === 'finalized_order' || (node.type as string) === 'finalizedOrder') {
+    return String(node.data?.orderCode || node.data?.salesOrderNumber || node.name || 'PED-S/N');
+  }
+  if (node.type === 'budget') {
+    if (node.data?.salesOrderNumber) return String(node.data.salesOrderNumber);
+    if (node.data?.orderCode) return String(node.data.orderCode);
+    if (node.data?.budgetNumber) return String(node.data.budgetNumber);
+  }
+
+  // Connections trace
+  const connectedNodeIds = new Set<string>();
+  connections.forEach(c => {
+    if (c.fromId === node.id) connectedNodeIds.add(c.toId);
+    if (c.toId === node.id) connectedNodeIds.add(c.fromId);
+  });
+
+  for (const cId of connectedNodeIds) {
+    const connNode = allNodes.find(n => n.id === cId);
+    if (connNode) {
+      if (connNode.type === 'order') {
+        const code = connNode.data?.salesOrderNumber || connNode.data?.orderCode || connNode.name;
+        if (code) return String(code).trim();
+      }
+      if (connNode.type === 'finalized_order' || (connNode.type as string) === 'finalizedOrder') {
+        const code = connNode.data?.orderCode || connNode.data?.salesOrderNumber || connNode.name;
+        if (code) return String(code).trim();
+      }
+      if (connNode.data?.salesOrderNumber || connNode.data?.orderCode) {
+        return String(connNode.data?.salesOrderNumber || connNode.data?.orderCode).trim();
+      }
+    }
+  }
+
+  // Fallbacks
+  if (node.data?.opNumber) return `OP-${node.data.opNumber}`;
+  if (node.data?.code) return `#${node.data.code}`;
+
+  return '---';
+}
+
 export const SectorReportModal: React.FC<SectorReportModalProps> = ({
   isOpen,
   onClose,
@@ -264,6 +322,7 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
       const isPending = !isCompleted && !isDelayed && !isWarning && !isInProgress;
 
       const sectorName = getNodeSectorName(node, availableSectors);
+      const salesOrder = getSalesOrderForNode(node, nodes, connections);
 
       return {
         node,
@@ -280,6 +339,7 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
         startFormatted: formatDisplayDate(rawStart),
         endFormatted: formatDisplayDate(rawDeadline),
         sectorName,
+        salesOrder,
       };
     });
   }, [relatedNodes, nodes, connections, availableSectors]);
@@ -399,7 +459,8 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
         const sector = d.sectorName?.toLowerCase() || '';
         const resp = (d.node.data?.responsible || d.node.data?.supervisorName || '').toLowerCase();
         const code = (d.node.data?.code || d.node.data?.sectorCode || d.node.data?.opNumber || '').toLowerCase();
-        return name.includes(q) || type.includes(q) || sector.includes(q) || resp.includes(q) || code.includes(q);
+        const salesOrder = (d.salesOrder || '').toLowerCase();
+        return name.includes(q) || type.includes(q) || sector.includes(q) || resp.includes(q) || code.includes(q) || salesOrder.includes(q);
       });
     }
 
@@ -464,6 +525,7 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
     const headers = [
       'Nome do Quadro',
       'Tipo de Bloco',
+      'Pedido de Venda',
       'Setor',
       'Status Operacional',
       'Prazo Inicial',
@@ -481,6 +543,7 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
     const rows = filteredAndSortedNodes.map(item => [
       `"${(item.node.name || '').replace(/"/g, '""')}"`,
       `"${item.node.type}"`,
+      `"${(item.salesOrder || '---').replace(/"/g, '""')}"`,
       `"${item.sectorName}"`,
       `"${item.isCompleted ? 'Concluído' : item.isDelayed ? 'Atrasado' : item.isWarning ? 'Em Alerta' : item.isInProgress ? 'Em Andamento' : 'Pendente'}"`,
       `"${item.startFormatted}"`,
@@ -585,8 +648,8 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
       const isSimplifiedPDF = detailLevel === 'simplified';
 
       const tableHeaders = isSimplifiedPDF
-        ? [['Quadro / Atividade', 'Setor', 'Status', 'Prazo Final', 'Avanço', 'Responsável']]
-        : [['Quadro / Atividade', 'Tipo / Código', 'Setor', 'Status Operacional', 'Início', 'Prazo Final', 'Restante', 'Diagnóstico do Prazo', 'Avanço', 'Qtd / Prioridade', 'Responsável']];
+        ? [['Quadro / Atividade', 'Ped. Venda', 'Setor', 'Status', 'Prazo Final', 'Avanço', 'Responsável']]
+        : [['Quadro / Atividade', 'Ped. Venda', 'Tipo / Código', 'Setor', 'Status Operacional', 'Início', 'Prazo Final', 'Restante', 'Diagnóstico do Prazo', 'Avanço', 'Qtd / Prioridade', 'Responsável']];
 
       const tableRows = filteredAndSortedNodes.map(item => {
         const statusText = item.isCompleted 
@@ -618,6 +681,7 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
         if (isSimplifiedPDF) {
           return [
             item.node.name || 'Sem nome',
+            item.salesOrder || '---',
             item.sectorName || 'Geral',
             statusText,
             item.endFormatted || '---',
@@ -628,6 +692,7 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
 
         return [
           item.node.name || 'Sem nome',
+          item.salesOrder || '---',
           typeAndCode,
           item.sectorName || 'Geral',
           statusText,
@@ -643,25 +708,27 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
 
       const columnStylesConfig = isSimplifiedPDF
         ? {
-            0: { cellWidth: 80, fontStyle: 'bold' as const },
-            1: { cellWidth: 45 },
-            2: { cellWidth: 38, fontStyle: 'bold' as const },
-            3: { cellWidth: 32 },
-            4: { cellWidth: 26, halign: 'center' as const, fontStyle: 'bold' as const },
-            5: { cellWidth: 48 },
+            0: { cellWidth: 70, fontStyle: 'bold' as const },
+            1: { cellWidth: 32, fontStyle: 'bold' as const },
+            2: { cellWidth: 38 },
+            3: { cellWidth: 35, fontStyle: 'bold' as const },
+            4: { cellWidth: 28 },
+            5: { cellWidth: 22, halign: 'center' as const, fontStyle: 'bold' as const },
+            6: { cellWidth: 44 },
           }
         : {
-            0: { cellWidth: 42, fontStyle: 'bold' as const },
-            1: { cellWidth: 22 },
-            2: { cellWidth: 24 },
-            3: { cellWidth: 24, fontStyle: 'bold' as const },
-            4: { cellWidth: 18 },
-            5: { cellWidth: 18 },
-            6: { cellWidth: 16, halign: 'center' as const },
-            7: { cellWidth: 35 },
-            8: { cellWidth: 16, halign: 'center' as const, fontStyle: 'bold' as const },
-            9: { cellWidth: 26 },
-            10: { cellWidth: 28 },
+            0: { cellWidth: 38, fontStyle: 'bold' as const },
+            1: { cellWidth: 26, fontStyle: 'bold' as const },
+            2: { cellWidth: 20 },
+            3: { cellWidth: 22 },
+            4: { cellWidth: 22, fontStyle: 'bold' as const },
+            5: { cellWidth: 16 },
+            6: { cellWidth: 16 },
+            7: { cellWidth: 15, halign: 'center' as const },
+            8: { cellWidth: 32 },
+            9: { cellWidth: 15, halign: 'center' as const, fontStyle: 'bold' as const },
+            10: { cellWidth: 24 },
+            11: { cellWidth: 23 },
           };
 
       autoTable(doc, {
@@ -689,8 +756,8 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
         columnStyles: columnStylesConfig,
         didParseCell: (data) => {
           if (data.section === 'body') {
-            const statusColIdx = isSimplifiedPDF ? 2 : 3;
-            const progressColIdx = isSimplifiedPDF ? 4 : 8;
+            const statusColIdx = isSimplifiedPDF ? 3 : 4;
+            const progressColIdx = isSimplifiedPDF ? 5 : 9;
 
             if (data.column.index === statusColIdx) {
               const val = String(data.cell.raw);
@@ -1315,6 +1382,7 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
                       {detailLevel === 'simplified' ? (
                         <tr>
                           <th className="px-5 py-3">Quadro / Atividade</th>
+                          <th className="px-3 py-3">Pedido de Venda</th>
                           <th className="px-4 py-3">Setor</th>
                           <th className="px-4 py-3">Status</th>
                           <th className="px-4 py-3">Prazo Final</th>
@@ -1324,6 +1392,7 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
                       ) : (
                         <tr>
                           <th className="px-5 py-3.5">Quadro / Atividade</th>
+                          <th className="px-3 py-3.5">Pedido de Venda</th>
                           <th className="px-3 py-3.5">Setor</th>
                           <th className="px-3 py-3.5">Status Operacional</th>
                           <th className="px-3 py-3.5">Início</th>
@@ -1359,6 +1428,12 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
                                     </span>
                                   )}
                                 </div>
+                              </td>
+
+                              <td className="px-3 py-3 font-mono text-[11px]">
+                                <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-bold whitespace-nowrap">
+                                  {item.salesOrder}
+                                </span>
                               </td>
 
                               <td className="px-4 py-3">
@@ -1447,6 +1522,13 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
                                   )}
                                 </div>
                               </div>
+                            </td>
+
+                            {/* Pedido de Venda */}
+                            <td className="px-3 py-3.5 font-mono text-[11px]">
+                              <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-bold whitespace-nowrap">
+                                {item.salesOrder}
+                              </span>
                             </td>
 
                             {/* Setor */}
@@ -1662,9 +1744,12 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
                             )}
                           </div>
 
-                          {/* Setor e Responsável */}
-                          <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono mb-2.5 pb-2 border-b border-white/5">
-                            <span className="truncate">Setor: <b className="text-slate-200">{item.sectorName}</b></span>
+                          {/* Pedido, Setor e Responsável */}
+                          <div className="flex flex-col gap-1 text-[10px] text-slate-400 font-mono mb-2.5 pb-2 border-b border-white/5">
+                            <div className="flex items-center justify-between">
+                              <span className="truncate">Ped. Venda: <b className="text-emerald-300 font-bold">{item.salesOrder}</b></span>
+                              <span className="truncate">Setor: <b className="text-slate-200">{item.sectorName}</b></span>
+                            </div>
                             <span className="truncate">Resp: <b className="text-slate-200">{node.data?.responsible || node.data?.supervisorName || 'Equipe'}</b></span>
                           </div>
 
