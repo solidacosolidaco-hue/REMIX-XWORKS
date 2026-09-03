@@ -225,7 +225,7 @@ export function App() {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveFeedback, setSaveFeedback] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
-  const handleSave = async () => {
+  const handleSave = async (isAutoSave = false) => {
     if (isSaving) return;
     setIsSaving(true);
     setSaveFeedback('saving');
@@ -244,9 +244,13 @@ export function App() {
             }
           : b
       );
-      setBoards(updatedBoards);
+      
+      // Update state if not just a background sync
+      if (!isAutoSave) {
+        setBoards(updatedBoards);
+      }
 
-      // 2. Persistir localmente no localStorage imediatamente para garantia total
+      // 2. Persistir localmente no localStorage
       try {
         localStorage.setItem('xcanvas_boards_backup', JSON.stringify(updatedBoards));
       } catch (e) {
@@ -254,7 +258,22 @@ export function App() {
       }
 
       // 3. Persistir no Supabase
-      await syncAllBoardsToSupabase(updatedBoards);
+      // Always attempt to save to Supabase when triggered manually.
+      // For auto-save, we only attempt if we know we are connected to avoid spamming errors.
+      if (!isAutoSave || supabaseConnected) {
+        const syncResult = await syncAllBoardsToSupabase(updatedBoards);
+        
+        if (syncResult.saved === 0) {
+          throw new Error('Falha ao salvar no banco (nenhuma lousa salva). Verifique sua conexão e se as tabelas foram criadas corretamente.');
+        } else if (syncResult.saved < syncResult.total) {
+          console.warn(`Atenção: Apenas ${syncResult.saved} de ${syncResult.total} lousas foram salvas.`);
+        }
+        
+        // If we successfully saved, ensure we mark as connected
+        if (!supabaseConnected) {
+          setSupabaseConnected(true);
+        }
+      }
 
       setSaveFeedback('saved');
       setTimeout(() => {
@@ -270,6 +289,42 @@ export function App() {
       setIsSaving(false);
     }
   };
+
+  // Auto-save effect
+  const autoSaveRefs = useRef({ boards, nodes, connections, viewport, canvasTheme, activeBoardId, supabaseConnected });
+  useEffect(() => {
+    autoSaveRefs.current = { boards, nodes, connections, viewport, canvasTheme, activeBoardId, supabaseConnected };
+  }, [boards, nodes, connections, viewport, canvasTheme, activeBoardId, supabaseConnected]);
+
+  useEffect(() => {
+    // A cada 30 segundos, dispara o salvamento automático no fundo
+    const interval = setInterval(async () => {
+      const state = autoSaveRefs.current;
+      if (!state.supabaseConnected) return;
+
+      const updatedBoards = state.boards.map((b) =>
+        b.id === state.activeBoardId
+          ? {
+              ...b,
+              nodes: state.nodes,
+              connections: state.connections,
+              viewport: state.viewport,
+              theme: state.canvasTheme,
+              updatedAt: new Date().toISOString(),
+            }
+          : b
+      );
+      
+      try {
+        localStorage.setItem('xcanvas_boards_backup', JSON.stringify(updatedBoards));
+        await syncAllBoardsToSupabase(updatedBoards);
+      } catch (e) {
+        // Silently fail on background auto-save
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
 
   // Check Supabase connection health on mount
   useEffect(() => {
@@ -2185,7 +2240,7 @@ export function App() {
             {/* Botão de Salvar */}
             <button
               id="nav-btn-save"
-              onClick={handleSave}
+              onClick={() => handleSave(false)}
               disabled={isSaving}
               className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold border transition-all shadow-sm whitespace-nowrap shrink-0 cursor-pointer ${
                 saveFeedback === 'saved'

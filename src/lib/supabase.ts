@@ -7,13 +7,13 @@ import { RegisteredOrder } from '../data/orderRegistry';
 // Normalize the Supabase URL
 const rawUrl =
   (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_SUPABASE_URL) ||
-  'https://nwqbdwcvhdrjssoezftj.supabase.co';
+  'https://sfkwyoeykanynywkptnx.supabase.co';
 
 export const SUPABASE_URL = rawUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
 
 export const SUPABASE_ANON_KEY =
   (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_SUPABASE_ANON_KEY) ||
-  'sb_publishable_AGUlIum4Nt11sTshd4q1RA_5P-YXVa0';
+  'sb_publishable_430GJDkeYrArR155tTqeeA_RfU2lVQn';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
@@ -215,15 +215,16 @@ export async function saveSupabaseBoard(board: CanvasBoard): Promise<boolean> {
 
     if (error) {
       if (error.code === 'PGRST205') {
+        console.error('Tabela boards não existe', error);
         return false;
       }
-      console.warn('Erro ao salvar board no Supabase:', error);
+      console.error('Erro ao salvar board no Supabase:', error);
       return false;
     }
 
     return true;
   } catch (err) {
-    console.warn('Exceção ao salvar board no Supabase:', err);
+    console.error('Exceção ao salvar board no Supabase:', err);
     return false;
   }
 }
