@@ -78,6 +78,8 @@ import {
   ChevronDown,
   Shield,
   Key,
+  Download,
+  Upload,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -288,6 +290,90 @@ export function App() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // Backup Functions
+  const handleExportData = () => {
+    // Atualizar estado com a lousa ativa atual antes de exportar
+    const updatedBoards = boards.map((b) =>
+      b.id === activeBoardId
+        ? {
+            ...b,
+            nodes,
+            connections,
+            viewport,
+            theme: canvasTheme,
+            updatedAt: new Date().toISOString(),
+          }
+        : b
+    );
+    
+    const exportData = {
+      boards: updatedBoards,
+      exportDate: new Date().toISOString(),
+      version: '1.0'
+    };
+
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `xworks-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportDataTrigger = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json';
+    input.onchange = async (e: any) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const content = event.target?.result as string;
+          const importedData = JSON.parse(content);
+
+          if (importedData.boards && Array.isArray(importedData.boards)) {
+            setBoards(importedData.boards);
+            
+            // Seleciona a primeira lousa importada
+            if (importedData.boards.length > 0) {
+              const firstBoard = importedData.boards[0];
+              setActiveBoardId(firstBoard.id);
+              setNodes(firstBoard.nodes || []);
+              setConnections(firstBoard.connections || []);
+              setViewport(firstBoard.viewport || { x: 80, y: 40, scale: 0.85 });
+              if (firstBoard.theme) setCanvasTheme(firstBoard.theme as CanvasTheme);
+            }
+
+            // Salva no LocalStorage
+            localStorage.setItem('xcanvas_boards_backup', JSON.stringify(importedData.boards));
+            
+            // Sincroniza com o Supabase se conectado
+            if (supabaseConnected) {
+              await syncAllBoardsToSupabase(importedData.boards);
+            }
+
+            alert('Backup restaurado com sucesso!');
+          } else {
+            alert('Arquivo de backup inválido. Não foi possível encontrar as lousas.');
+          }
+        } catch (err) {
+          console.error('Erro ao importar backup:', err);
+          alert('Erro ao importar arquivo. Verifique se é um arquivo JSON válido.');
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
   };
 
   // Auto-save effect
@@ -2273,6 +2359,27 @@ export function App() {
                 </>
               )}
             </button>
+
+            {/* Backup/Restore Buttons */}
+            <div className="flex items-center bg-slate-800/30 rounded-lg p-0.5 border border-white/5">
+              <button
+                onClick={handleImportDataTrigger}
+                className="flex items-center gap-1.5 hover:bg-slate-700/50 text-slate-300 hover:text-white px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer"
+                title="Abrir backup do computador"
+              >
+                <Upload className="w-3 h-3 shrink-0" />
+                <span className="hidden sm:inline">Restaurar</span>
+              </button>
+              <div className="w-[1px] h-3.5 bg-white/10 mx-0.5"></div>
+              <button
+                onClick={handleExportData}
+                className="flex items-center gap-1.5 hover:bg-slate-700/50 text-slate-300 hover:text-white px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer"
+                title="Salvar backup no computador"
+              >
+                <Download className="w-3 h-3 shrink-0" />
+                <span className="hidden sm:inline">Backup</span>
+              </button>
+            </div>
 
             {/* Modelos / Templates Button */}
             <button
