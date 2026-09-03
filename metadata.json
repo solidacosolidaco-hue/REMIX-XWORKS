@@ -1,0 +1,8 @@
+{
+  "name": "Remix XWorks Sistemas",
+  "description": "Infinite visual canvas and intelligent workspace for projects, CRM, orders, flowcharts, kanban, investigation graphs, and production management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
