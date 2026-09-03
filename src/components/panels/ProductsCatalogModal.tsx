@@ -24,7 +24,7 @@ interface FiscalData {
   aliquotaIcms: number;
 }
 
-interface Product {
+export interface Product {
   id: string;
   name: string;
   sku: string;

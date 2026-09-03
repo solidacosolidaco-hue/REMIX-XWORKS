@@ -43,6 +43,7 @@ import { ProductsCatalogModal } from './components/panels/ProductsCatalogModal';
 import { ImmersiveCalendarModal } from './components/panels/ImmersiveCalendarModal';
 import { BoardTabBar } from './components/panels/BoardTabBar';
 import { SimplifiedView } from './components/panels/SimplifiedView';
+import { CommercialTerminalModal } from './components/panels/CommercialTerminalModal';
 import { SectorReportModal } from './components/panels/SectorReportModal';
 import { SupabaseModal } from './components/panels/SupabaseModal';
 import {
@@ -80,6 +81,7 @@ import {
   Key,
   Download,
   Upload,
+  ShoppingCart,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -90,11 +92,27 @@ export function App() {
       const saved = typeof window !== 'undefined' ? localStorage.getItem('xcanvas_boards_backup') : null;
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed as CanvasBoard[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Check if parsed boards contain the new transcribed board
+          const hasTranscribedBoard = parsed.some(b => b.nodes && b.nodes.some(n => n.id === 'node-cp-1'));
+          if (hasTranscribedBoard) return parsed as CanvasBoard[];
+        }
       }
     } catch {}
     return null;
   })();
+
+  const defaultMasterBoard: CanvasBoard = {
+    id: 'board-1',
+    name: 'Controle de Produção — Lousa Única',
+    nodes: initialIndustrialNodes,
+    connections: initialIndustrialConnections,
+    viewport: { x: 40, y: 20, scale: 0.6 },
+    createdAt: new Date().toLocaleDateString('pt-BR'),
+    userId: 'user-ueliton',
+    ownerName: 'Ueliton',
+    isShared: true,
+  };
 
   // Core Canvas State
   const [nodes, setNodes] = useState<CanvasNode[]>(
@@ -104,54 +122,15 @@ export function App() {
     initialSavedBoards?.[0]?.connections || initialIndustrialConnections
   );
   const [viewport, setViewport] = useState<Viewport>(
-    initialSavedBoards?.[0]?.viewport || { x: 80, y: 40, scale: 0.85 }
+    initialSavedBoards?.[0]?.viewport || { x: 40, y: 20, scale: 0.6 }
   );
 
   // Multiple Boards / Lousas State
   const [boards, setBoards] = useState<CanvasBoard[]>(() => {
     if (initialSavedBoards && initialSavedBoards.length > 0) {
-      return initialSavedBoards.map((b, idx) => ({
-        ...b,
-        userId: b.userId || (idx === 0 ? 'user-ueliton' : undefined),
-        ownerName: b.ownerName || (idx === 0 ? 'Ueliton' : 'Geral'),
-        isShared: b.isShared ?? true,
-      }));
+      return initialSavedBoards;
     }
-    return [
-      {
-        id: 'board-1',
-        name: 'Fluxo Principal de Produção',
-        nodes: initialIndustrialNodes,
-        connections: initialIndustrialConnections,
-        viewport: { x: 80, y: 40, scale: 0.85 },
-        createdAt: new Date().toLocaleDateString('pt-BR'),
-        userId: 'user-ueliton',
-        ownerName: 'Ueliton',
-        isShared: true,
-      },
-      {
-        id: 'board-carlos-1',
-        name: 'Produção & Montagem (Carlos)',
-        nodes: initialIndustrialNodes.slice(0, 4),
-        connections: initialIndustrialConnections.slice(0, 3),
-        viewport: { x: 80, y: 40, scale: 0.85 },
-        createdAt: new Date().toLocaleDateString('pt-BR'),
-        userId: 'user-carlos',
-        ownerName: 'Carlos Silva',
-        isShared: false,
-      },
-      {
-        id: 'board-mariana-1',
-        name: 'Planejamento PCP (Mariana)',
-        nodes: initialIndustrialNodes.slice(4),
-        connections: initialIndustrialConnections.slice(3),
-        viewport: { x: 80, y: 40, scale: 0.85 },
-        createdAt: new Date().toLocaleDateString('pt-BR'),
-        userId: 'user-mariana',
-        ownerName: 'Mariana Souza',
-        isShared: false,
-      },
-    ];
+    return [defaultMasterBoard];
   });
   const [activeBoardId, setActiveBoardId] = useState<string>(
     initialSavedBoards?.[0]?.id || 'board-1'
@@ -190,6 +169,7 @@ export function App() {
   const [isProductsCatalogOpen, setIsProductsCatalogOpen] = useState(false);
   const [isImmersiveCalendarOpen, setIsImmersiveCalendarOpen] = useState(false);
   const [isSimplifiedViewOpen, setIsSimplifiedViewOpen] = useState(false);
+  const [isCommercialTerminalOpen, setIsCommercialTerminalOpen] = useState(false);
   const [isSectorReportOpen, setIsSectorReportOpen] = useState(false);
   const [sectorReportTargetId, setSectorReportTargetId] = useState<string | null>(null);
   const [inspectorDockPosition, setInspectorDockPosition] = useState<'left' | 'right' | 'floating'>('right');
@@ -549,6 +529,92 @@ export function App() {
     setNodes((prev) => [...prev, newNode]);
     setConnections(newConns);
     setSelectedNodeIds([newId]);
+  };
+
+  const handleCompleteSale = (saleData: any) => {
+    pushHistory();
+    setNodes((prevNodes) => {
+      const updated = [...prevNodes];
+      
+      // 1. Create Order Node
+      const orderId = `node-order-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const orderPosX = Math.round(-viewport.x / (viewport.scale || 1) + 200);
+      const orderPosY = Math.round(-viewport.y / (viewport.scale || 1) + 150);
+      
+      const orderNode: CanvasNode = {
+        id: orderId,
+        type: 'order',
+        name: `Pedido - ${saleData.customer ? saleData.customer.name : 'Venda Rápida'}`,
+        x: orderPosX,
+        y: orderPosY,
+        width: 320,
+        height: 250,
+        status: 'Em Produção',
+        color: 'emerald',
+        createdAt: new Date().toLocaleDateString('pt-BR'),
+        updatedAt: new Date().toLocaleDateString('pt-BR'),
+        tags: ['PDV', 'Venda'],
+        data: {
+          clientName: saleData.customer ? saleData.customer.name : 'Venda Balcão',
+          deadline: new Date().toLocaleDateString('pt-BR'),
+          value: saleData.total,
+          details: `Pagamento: ${saleData.paymentMethod}\nItens: ${saleData.items.reduce((a: number, b: any) => a + b.quantity, 0)}`,
+        },
+      };
+      
+      updated.push(orderNode);
+      
+      // 2. Create Product Nodes and Link
+      const newConnections = [...connections];
+      
+      saleData.items.forEach((item: any, idx: number) => {
+        // Create as many product nodes as the quantity? Or just one with quantity inside?
+        // Our product node currently doesn't have a quantity field in UI, but we can just spawn one node per unique product for simplicity, 
+        // or just spawn them based on quantity. Let's just spawn one product node per cart item for simplicity, and note the quantity in description.
+        const newId = `node-product-${Date.now()}-${idx}-${Math.floor(Math.random() * 1000)}`;
+        const offsetX = (idx % 3) * 60;
+        const offsetY = Math.floor(idx / 3) * 60 + 300;
+        
+        const posX = Math.round(-viewport.x / (viewport.scale || 1) + 200 + offsetX);
+        const posY = Math.round(-viewport.y / (viewport.scale || 1) + 150 + offsetY);
+        
+        const productNode: CanvasNode = {
+          id: newId,
+          type: 'product',
+          name: `${item.quantity}x ${item.name}`,
+          x: posX,
+          y: posY,
+          width: 320,
+          height: 270,
+          status: 'Em Produção',
+          color: 'indigo',
+          createdAt: new Date().toLocaleDateString('pt-BR'),
+          updatedAt: new Date().toLocaleDateString('pt-BR'),
+          tags: ['Produto', item.category, 'PDV'],
+          data: {
+            sku: `PDV-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
+            productionStep: 'Separação/Estoque',
+            responsible: 'Equipe de Expedição',
+            progress: 0,
+            qualityCheck: false,
+            notes: `Venda via PDV. Quantidade: ${item.quantity}\nValor Total: R$ ${(item.unitPrice * item.quantity).toFixed(2)}\n${item.description || ''}`,
+          },
+        };
+        
+        updated.push(productNode);
+        
+        // Link product to order
+        newConnections.push({
+          id: `conn-${newId}-to-${orderId}`,
+          from: newId,
+          to: orderId,
+          type: 'solid'
+        });
+      });
+      
+      setConnections(newConnections);
+      return updated;
+    });
   };
 
   const handleAddProductNodes = (products: any[]) => {
@@ -2313,6 +2379,17 @@ export function App() {
             </button>
 
             {/* Emitir Nota Fiscal Button */}
+            {/* Botão PDV */}
+            <button
+              id="nav-btn-pdv"
+              onClick={() => setIsCommercialTerminalOpen(true)}
+              className="flex items-center gap-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 hover:text-blue-200 px-3 py-1.5 rounded-lg text-xs font-semibold border border-blue-500/30 transition-all shadow-sm whitespace-nowrap shrink-0 cursor-pointer"
+              title="Terminal Comercial (PDV)"
+            >
+              <ShoppingCart className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+              <span className="hidden sm:inline">PDV (Vendas)</span>
+            </button>
+
             <button
               id="nav-btn-invoice"
               onClick={() => handleOpenInvoiceModal()}
@@ -2801,6 +2878,13 @@ export function App() {
         onAddProductNodes={handleAddProductNodes}
         onLinkProductsToOrder={handleLinkProductsToOrder}
         onLinkProductsToProduct={handleLinkProductsToProduct}
+      />
+
+      {/* Terminal PDV Comercial */}
+      <CommercialTerminalModal
+        isOpen={isCommercialTerminalOpen}
+        onClose={() => setIsCommercialTerminalOpen(false)}
+        onCompleteSale={handleCompleteSale}
       />
 
       <ImmersiveCalendarModal

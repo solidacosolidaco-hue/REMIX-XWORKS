@@ -439,42 +439,6 @@ export const Canvas: React.FC<CanvasProps> = ({
 
   // Render Inner Node Content by NodeType
   const renderNodeContent = (node: CanvasNode) => {
-    // Zoom level / Performance simplification (LOD - Level of Detail)
-    if (viewport.scale < 0.35 || isLightMode) {
-      const colorMap: Record<string, string> = {
-        blue: 'text-blue-400 border-blue-500/35 bg-blue-950/20',
-        emerald: 'text-emerald-400 border-emerald-500/35 bg-emerald-950/20',
-        amber: 'text-amber-400 border-amber-500/35 bg-amber-950/20',
-        rose: 'text-rose-400 border-rose-500/35 bg-rose-950/20',
-        purple: 'text-purple-400 border-purple-500/35 bg-purple-950/20',
-        cyan: 'text-cyan-400 border-cyan-500/35 bg-cyan-950/20',
-        indigo: 'text-indigo-400 border-indigo-500/35 bg-indigo-950/20',
-        slate: 'text-slate-400 border-slate-700/35 bg-slate-900/20',
-      };
-      const themeColorClass = colorMap[node.color || 'blue'] || colorMap.blue;
-
-      return (
-        <div className={`p-4 h-full flex flex-col justify-between rounded-xl border ${themeColorClass} backdrop-blur-sm select-none`}>
-          <div>
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <span className="text-[10px] uppercase font-mono tracking-widest opacity-60">
-                {node.type}
-              </span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 border border-white/10 font-medium">
-                {node.status || 'Ativo'}
-              </span>
-            </div>
-            <h4 className="font-bold text-sm text-slate-100 line-clamp-2 leading-snug">
-              {node.name}
-            </h4>
-          </div>
-          <div className="text-[11px] opacity-50 line-clamp-2 leading-relaxed">
-            {node.data.description || node.data.noteText || node.data.content || 'Item Operacional'}
-          </div>
-        </div>
-      );
-    }
-
     switch (node.type) {
       case 'text':
         return (

@@ -1,4 +1,5 @@
 import { CanvasNode, Connection, PresentationStep, PresentationSlide } from '../types/canvas';
+import { CONTROLE_PRODUCAO_NODES, CONTROLE_PRODUCAO_CONNECTIONS } from './controleProducaoBoard';
 
 export interface WorkspaceTemplate {
   id: string;
@@ -700,8 +701,8 @@ export const TEMPLATES: Record<string, { nodes: CanvasNode[], connections: Conne
   }
 };
 
-export const initialIndustrialNodes: CanvasNode[] = INDUSTRIAL_MACHINE_TEMPLATE.nodes;
-export const initialIndustrialConnections: Connection[] = INDUSTRIAL_MACHINE_TEMPLATE.connections;
+export const initialIndustrialNodes: CanvasNode[] = CONTROLE_PRODUCAO_NODES;
+export const initialIndustrialConnections: Connection[] = CONTROLE_PRODUCAO_CONNECTIONS;
 export const industrialPresentationSlides: PresentationSlide[] = (INDUSTRIAL_MACHINE_TEMPLATE.presentationSteps || []).map((step) => ({
   id: step.id,
   title: step.title,
