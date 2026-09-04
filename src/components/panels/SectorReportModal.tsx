@@ -37,35 +37,112 @@ import {
   SlidersHorizontal,
   DollarSign,
   Boxes,
-  Briefcase
+  Briefcase,
+  ChevronUp,
+  ChevronRight,
+  Workflow,
+  User,
 } from 'lucide-react';
-import { CanvasNode, Connection } from '../../types/canvas';
+import { CanvasNode, Connection, CanvasBoard } from '../../types/canvas';
 import { calculateNodeProgress, isNodeBottleneck } from '../../utils/nodeProgress';
 import { getNodeDeadlineInfo, parseDateString, NodeDeadlineInfo } from '../../utils/nodeDeadline';
-import { isNodeInsideGroup } from '../../utils/geometry';
+import { isNodeInsideGroup, getInterruptedConnectionIds } from '../../utils/geometry';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
-interface SectorReportModalProps {
+export interface SectorReportModalProps {
   isOpen: boolean;
   onClose: () => void;
   sectorId: string | null;
   nodes: CanvasNode[];
   connections: Connection[];
+  boards?: CanvasBoard[];
+  activeBoardId?: string;
+  onSelectBoard?: (boardId: string) => void;
 }
 
 type StatusFilterType = 'all' | 'delayed' | 'warning' | 'in_progress' | 'pending' | 'completed' | 'bottleneck';
-type SortOptionType = 'deadline_asc' | 'deadline_desc' | 'status_urgency' | 'progress_desc' | 'progress_asc' | 'name_asc';
-type ViewModeType = 'table' | 'cards';
+type SortOptionType = 'priority_deadline' | 'deadline_asc' | 'deadline_desc' | 'status_urgency' | 'flow_asc' | 'progress_desc' | 'progress_asc' | 'name_asc';
+type ViewModeType = 'sectors' | 'table' | 'cards';
 type DetailLevelType = 'simplified' | 'detailed';
+
+function getNodeDisplayName(node: CanvasNode): string {
+  if (node.type === 'interrupted_flow') {
+    return node.data?.incidentTitle || node.data?.title || node.name || 'Interrupção de Fluxo';
+  }
+  if (node.type === 'order') {
+    return node.data?.orderNumber
+      ? `Pedido #${node.data.orderNumber} - ${node.data?.clientName || node.name}`
+      : node.name;
+  }
+  return node.name || 'Quadro Sem Nome';
+}
+
+function getSalesOrderForNode(
+  node: CanvasNode,
+  allNodes: CanvasNode[],
+  connections: Connection[]
+): string {
+  if (node.type === 'order') {
+    return node.data?.orderNumber ? `PED-${node.data.orderNumber}` : node.data?.clientName || node.name;
+  }
+  if (node.data?.salesOrder) return String(node.data.salesOrder);
+  if (node.data?.pedidoVenda) return String(node.data.pedidoVenda);
+  if (node.data?.orderNumber) return `PED-${node.data.orderNumber}`;
+
+  // Check upstream connections to find associated sales order
+  const visited = new Set<string>();
+  const queue = [node.id];
+  while (queue.length > 0) {
+    const currId = queue.shift()!;
+    if (visited.has(currId)) continue;
+    visited.add(currId);
+
+    const upstreamConns = connections.filter(c => c.toId === currId);
+    for (const c of upstreamConns) {
+      const parent = allNodes.find(n => n.id === c.fromId);
+      if (parent) {
+        if (parent.type === 'order') {
+          return parent.data?.orderNumber ? `PED-${parent.data.orderNumber}` : parent.data?.clientName || parent.name;
+        }
+        if (parent.data?.salesOrder) return String(parent.data.salesOrder);
+        if (parent.data?.pedidoVenda) return String(parent.data.pedidoVenda);
+        if (parent.data?.orderNumber) return `PED-${parent.data.orderNumber}`;
+        queue.push(parent.id);
+      }
+    }
+  }
+
+  return '---';
+}
 
 function formatDisplayDate(dateStr?: string): string {
   if (!dateStr) return '---';
-  const d = parseDateString(dateStr);
-  if (!d) return dateStr;
+  const trimmed = String(dateStr).trim();
+  if (!trimmed) return '---';
+  const d = parseDateString(trimmed);
+  if (!d) return trimmed;
+  
+  if (trimmed.includes(':') || trimmed.includes('T')) {
+    const timeParts = trimmed.split(/[\sT]+/)[1];
+    if (timeParts) {
+      const hhmm = timeParts.slice(0, 5);
+      return `${d.toLocaleDateString('pt-BR')} ${hhmm}`;
+    }
+  }
   return d.toLocaleDateString('pt-BR');
 }
 
-function getNodeSectorName(node: CanvasNode, sectorNodes: CanvasNode[]): string {
+function getNodeSectorName(
+  node: CanvasNode, 
+  sectorNodes: CanvasNode[], 
+  allNodes?: CanvasNode[], 
+  connections?: Connection[]
+): string {
+  // If incidentSector is explicitly recorded on interrupted node
+  if (node.data?.incidentSector && String(node.data.incidentSector).trim()) {
+    return String(node.data.incidentSector).trim();
+  }
+
   if (node.groupId) {
     const s = sectorNodes.find(sn => sn.id === node.groupId);
     if (s) return s.name;
@@ -81,65 +158,347 @@ function getNodeSectorName(node: CanvasNode, sectorNodes: CanvasNode[]): string 
   const enclosing = sectorNodes.find(sn => isNodeInsideGroup(node, sn));
   if (enclosing) return enclosing.name;
 
-  return 'Geral';
-}
-
-function getSalesOrderForNode(node: CanvasNode, allNodes: CanvasNode[], connections: Connection[]): string {
-  // Direct fields on node
-  const directCode = 
-    node.data?.salesOrderNumber ||
-    node.data?.orderCode ||
-    node.data?.salesOrder ||
-    node.data?.pedido ||
-    node.data?.ped ||
-    node.data?.orderNumber;
-
-  if (directCode && String(directCode).trim()) {
-    return String(directCode).trim();
-  }
-
-  // Node type fallbacks
-  if (node.type === 'order') {
-    return String(node.data?.salesOrderNumber || node.data?.orderCode || node.name || 'PED-S/N');
-  }
-  if (node.type === 'finalized_order' || (node.type as string) === 'finalizedOrder') {
-    return String(node.data?.orderCode || node.data?.salesOrderNumber || node.name || 'PED-S/N');
-  }
-  if (node.type === 'budget') {
-    if (node.data?.salesOrderNumber) return String(node.data.salesOrderNumber);
-    if (node.data?.orderCode) return String(node.data.orderCode);
-    if (node.data?.budgetNumber) return String(node.data.budgetNumber);
-  }
-
-  // Connections trace
-  const connectedNodeIds = new Set<string>();
-  connections.forEach(c => {
-    if (c.fromId === node.id) connectedNodeIds.add(c.toId);
-    if (c.toId === node.id) connectedNodeIds.add(c.fromId);
-  });
-
-  for (const cId of connectedNodeIds) {
-    const connNode = allNodes.find(n => n.id === cId);
-    if (connNode) {
-      if (connNode.type === 'order') {
-        const code = connNode.data?.salesOrderNumber || connNode.data?.orderCode || connNode.name;
-        if (code) return String(code).trim();
+  // If this is an interrupted_flow node linked to another node, inherit the linked node's sector
+  if (node.type === 'interrupted_flow' && allNodes && connections) {
+    for (const c of connections) {
+      if (c.fromId === node.id || c.toId === node.id) {
+        const otherId = c.fromId === node.id ? c.toId : c.fromId;
+        const otherNode = allNodes.find(n => n.id === otherId);
+        if (otherNode && otherNode.id !== node.id && otherNode.type !== 'interrupted_flow') {
+          const inherited = getNodeSectorName(otherNode, sectorNodes);
+          if (inherited && inherited !== 'Geral') return inherited;
+        }
       }
-      if (connNode.type === 'finalized_order' || (connNode.type as string) === 'finalizedOrder') {
-        const code = connNode.data?.orderCode || connNode.data?.salesOrderNumber || connNode.name;
-        if (code) return String(code).trim();
-      }
-      if (connNode.data?.salesOrderNumber || connNode.data?.orderCode) {
-        return String(connNode.data?.salesOrderNumber || connNode.data?.orderCode).trim();
+      if (c.toConnectionId && c.fromId === node.id) {
+        const targetConn = connections.find(tc => tc.id === c.toConnectionId);
+        if (targetConn) {
+          const fromN = allNodes.find(n => n.id === targetConn.fromId);
+          const toN = allNodes.find(n => n.id === targetConn.toId);
+          const s1 = fromN ? getNodeSectorName(fromN, sectorNodes) : '';
+          const s2 = toN ? getNodeSectorName(toN, sectorNodes) : '';
+          if (s1 && s1 !== 'Geral') return s1;
+          if (s2 && s2 !== 'Geral') return s2;
+        }
       }
     }
   }
 
-  // Fallbacks
-  if (node.data?.opNumber) return `OP-${node.data.opNumber}`;
-  if (node.data?.code) return `#${node.data.code}`;
+  return 'Geral';
+}
 
-  return '---';
+export interface NodeInterruptionDetail {
+  isInterrupted: boolean;
+  isResolved: boolean;
+  isBottleneck: boolean;
+  type: 'interrupted_flow_node' | 'linked_to_interrupted' | 'bottleneck' | 'explicit_blocked' | 'normal';
+  badgeTitle: string;
+  incidentDescription: string;
+  incidentResponsible?: string;
+  incidentDate?: string;
+  incidentResolutionDate?: string;
+  incidentSector?: string;
+  sourceNodeName?: string;
+  connectedNodeNames: string[];
+  connectionSummary: string;
+  text: string;
+  details: string;
+  fullText: string;
+  pdfFormattedText: string;
+}
+
+function getNodeInterruptionInfo(
+  node: CanvasNode,
+  allNodes: CanvasNode[],
+  connections: Connection[],
+  isBottleneck: boolean,
+  sectorNodes: CanvasNode[] = [],
+  interrupterMap: Map<string, string[]> = new Map()
+): NodeInterruptionDetail {
+  // 1. Direct interrupted_flow node
+  if (node.type === 'interrupted_flow') {
+    const isResolved = Boolean(node.data?.isResolved);
+    const incidentDescription =
+      node.data?.incidentDescription ||
+      node.data?.motivo ||
+      node.data?.reason ||
+      'Parada não planejada do processo por falha operacional';
+    const incidentResponsible = node.data?.incidentResponsible || node.data?.responsible || '';
+    const incidentDate = formatDisplayDate(node.data?.incidentDate || node.createdAt);
+    const incidentResolutionDate = formatDisplayDate(node.data?.incidentResolutionDate);
+    const incidentSector = node.data?.incidentSector || getNodeSectorName(node, sectorNodes, allNodes, connections);
+
+    // Find all nodes linked through connections or wires
+    const connectedNodeMap = new Map<string, string>();
+    for (const c of connections) {
+      if (c.fromId === node.id || c.toId === node.id) {
+        const otherId = c.fromId === node.id ? c.toId : c.fromId;
+        const otherNode = allNodes.find(n => n.id === otherId);
+        if (otherNode && otherNode.id !== node.id && otherNode.type !== 'interrupted_flow') {
+          const sName = getNodeSectorName(otherNode, sectorNodes);
+          const dName = getNodeDisplayName(otherNode);
+          connectedNodeMap.set(otherNode.id, `${dName} (${sName})`);
+        }
+      }
+      if (c.toConnectionId && c.fromId === node.id) {
+        const targetConn = connections.find(tc => tc.id === c.toConnectionId);
+        if (targetConn) {
+          const fromN = allNodes.find(n => n.id === targetConn.fromId);
+          const toN = allNodes.find(n => n.id === targetConn.toId);
+          if (fromN && fromN.type !== 'interrupted_flow') {
+            connectedNodeMap.set(fromN.id, `${getNodeDisplayName(fromN)} (${getNodeSectorName(fromN, sectorNodes)})`);
+          }
+          if (toN && toN.type !== 'interrupted_flow') {
+            connectedNodeMap.set(toN.id, `${getNodeDisplayName(toN)} (${getNodeSectorName(toN, sectorNodes)})`);
+          }
+        }
+      }
+    }
+
+    const connectedNodeNames = Array.from(connectedNodeMap.values());
+    const connectionSummary = connectedNodeNames.length > 0
+      ? `Ligação com: ${connectedNodeNames.join(' -> ')}`
+      : 'Conexão de linha interrompida';
+
+    if (isResolved) {
+      const resDateClean = incidentResolutionDate ? incidentResolutionDate.replace(/^previs[aã]o:\s*/i, '').trim() : '';
+      const resMeta = resDateClean && resDateClean !== '---' ? ` (${resDateClean})` : '';
+      return {
+        isInterrupted: false,
+        isResolved: true,
+        isBottleneck: false,
+        type: 'interrupted_flow_node',
+        badgeTitle: '🟢 FLUXO NORMALIZADO',
+        incidentDescription,
+        incidentResponsible,
+        incidentDate,
+        incidentResolutionDate,
+        incidentSector,
+        connectedNodeNames,
+        connectionSummary,
+        text: 'Normalizado',
+        details: `${incidentDescription}${resMeta}`,
+        fullText: `Normalizado: ${incidentDescription}${resMeta}`,
+        pdfFormattedText: `[FLUXO NORMALIZADO]\n• Solução: ${incidentDescription}\n• Conexão Reestabelecida${resDateClean && resDateClean !== '---' ? ` | Resolvido em: ${resDateClean}` : ''}`,
+      };
+    }
+
+    const cleanResDate = incidentResolutionDate ? incidentResolutionDate.replace(/^previs[aã]o:\s*/i, '').trim() : '';
+    const metaParts = [
+      incidentResponsible ? `Resp: ${incidentResponsible}` : '',
+      incidentDate && incidentDate !== '---' ? `Ocorrido: ${incidentDate}` : '',
+      cleanResDate && cleanResDate !== '---' ? `Previsão: ${cleanResDate}` : '',
+    ].filter(Boolean);
+
+    const pdfFormattedText = [
+      `[LIGAÇÃO BLOQUEADA]`,
+      connectedNodeNames.length > 0 ? `• Conexão: ${connectedNodeNames.join(' -> ')}` : `• Conexão: Linha de Fluxo Interrompida`,
+      `• Motivo: ${incidentDescription}`,
+      metaParts.length > 0 ? `• ${metaParts.join(' | ')}` : '',
+    ].filter(Boolean).join('\n');
+
+    return {
+      isInterrupted: true,
+      isResolved: false,
+      isBottleneck: false,
+      type: 'interrupted_flow_node',
+      badgeTitle: '🔴 LIGAÇÃO BLOQUEADA',
+      incidentDescription,
+      incidentResponsible,
+      incidentDate,
+      incidentResolutionDate,
+      incidentSector,
+      connectedNodeNames,
+      connectionSummary,
+      text: 'Fluxo Interrompido',
+      details: incidentDescription,
+      fullText: `Interrompido: ${incidentDescription}`,
+      pdfFormattedText,
+    };
+  }
+
+  // 2. Direct blocked or interrupted status / flags
+  const explicitReason =
+    node.data?.blockReason ||
+    node.data?.blockedReason ||
+    node.data?.motivoBloqueio ||
+    node.data?.incidentDescription ||
+    node.data?.motivo ||
+    node.data?.reason ||
+    node.data?.impediment;
+
+  // 3. Search for any unresolved interrupted_flow nodes impacting this node's line or connection
+  const allInterruptedNodes = allNodes.filter((n) => n.type === 'interrupted_flow');
+  for (const interNode of allInterruptedNodes) {
+    const isInterResolved = Boolean(interNode.data?.isResolved);
+
+    // Direct wire connection
+    const isDirectlyConnected = connections.some(
+      (c) =>
+        (c.fromId === interNode.id && c.toId === node.id) ||
+        (c.toId === interNode.id && c.fromId === node.id)
+    );
+
+    // Wire attached to connection of this node
+    const isWiredToNodeConn = connections.some(
+      (c) =>
+        c.toConnectionId &&
+        c.fromId === interNode.id &&
+        connections.some(
+          (tc) => tc.id === c.toConnectionId && (tc.fromId === node.id || tc.toId === node.id)
+        )
+    );
+
+    // Spatial line intersection connection (using interrupterMap)
+    const isSpatiallyConnected = connections.some(
+      (c) => 
+        (c.fromId === node.id || c.toId === node.id) &&
+        interrupterMap.get(c.id)?.includes(interNode.id)
+    );
+
+    if (isDirectlyConnected || isWiredToNodeConn || isSpatiallyConnected) {
+      const desc =
+        interNode.data?.incidentDescription ||
+        interNode.name ||
+        'Parada não planejada do processo por falha operacional';
+      const resp = interNode.data?.incidentResponsible || interNode.data?.responsible || '';
+      const date = formatDisplayDate(interNode.data?.incidentDate || interNode.createdAt);
+      const resDate = formatDisplayDate(interNode.data?.incidentResolutionDate);
+      const interSector = interNode.data?.incidentSector || getNodeSectorName(interNode, sectorNodes, allNodes, connections);
+      const sourceName = interNode.name || 'Fluxo Interrompido';
+
+      if (isInterResolved) {
+        return {
+          isInterrupted: false,
+          isResolved: true,
+          isBottleneck: false,
+          type: 'linked_to_interrupted',
+          badgeTitle: '🟢 FLUXO NORMALIZADO',
+          incidentDescription: desc,
+          incidentResponsible: resp,
+          incidentDate: date,
+          incidentResolutionDate: resDate,
+          incidentSector: interSector,
+          sourceNodeName: sourceName,
+          connectedNodeNames: [getNodeDisplayName(node)],
+          connectionSummary: `Ligação com: ${sourceName} (${interSector})`,
+          text: 'Normalizado',
+          details: `Ocorrência resolvida (${desc})`,
+          fullText: `Normalizado: Ocorrência resolvida em ${sourceName}`,
+          pdfFormattedText: `[FLUXO NORMALIZADO]\n• Histórico: Ocorrência resolvida (${desc})\n• Conexão Operacional Ativa`,
+        };
+      }
+
+      const cleanResDate = resDate ? resDate.replace(/^previs[aã]o:\s*/i, '').trim() : '';
+      const metaParts = [
+        resp ? `Resp: ${resp}` : '',
+        date && date !== '---' ? `Ocorrido: ${date}` : '',
+        cleanResDate && cleanResDate !== '---' ? `Previsão: ${cleanResDate}` : '',
+      ].filter(Boolean);
+
+      const pdfFormattedText = [
+        `[FLUXO INTERROMPIDO] -> Trava de Linha por: ${sourceName} (${interSector})`,
+        `• Motivo: ${desc}`,
+        metaParts.length > 0 ? `• ${metaParts.join(' | ')}` : '',
+      ].filter(Boolean).join('\n');
+
+      return {
+        isInterrupted: true,
+        isResolved: false,
+        isBottleneck: false,
+        type: 'linked_to_interrupted',
+        badgeTitle: '⚠️ FLUXO INTERROMPIDO',
+        incidentDescription: desc,
+        incidentResponsible: resp,
+        incidentDate: date,
+        incidentResolutionDate: resDate,
+        incidentSector: interSector,
+        sourceNodeName: sourceName,
+        connectedNodeNames: [getNodeDisplayName(node)],
+        connectionSummary: `Ligação bloqueada por: ${sourceName} (${interSector})`,
+        text: 'Fluxo Interrompido',
+        details: desc,
+        fullText: `Interrompido: ${desc}`,
+        pdfFormattedText,
+      };
+    }
+  }
+
+  // 4. Direct node status
+  if (
+    (node.status as string) === 'Interrompido' ||
+    (node.status as string) === 'Bloqueado' ||
+    node.data?.isInterrupted ||
+    node.data?.isBlocked ||
+    node.data?.blocked
+  ) {
+    const desc = explicitReason || 'Bloqueio operacional registrado no quadro';
+    return {
+      isInterrupted: true,
+      isResolved: false,
+      isBottleneck: false,
+      type: 'explicit_blocked',
+      badgeTitle: '⛔ BLOQUEIO OPERACIONAL',
+      incidentDescription: desc,
+      connectedNodeNames: [],
+      connectionSummary: 'Bloqueio no próprio quadro',
+      text: 'Fluxo Interrompido',
+      details: desc,
+      fullText: `Interrompido: ${desc}`,
+      pdfFormattedText: `[BLOQUEIO OPERACIONAL]\n• Motivo: ${desc}\n• Aguardando liberação`,
+    };
+  }
+
+  // 5. Bottleneck
+  if (isBottleneck) {
+    return {
+      isInterrupted: true,
+      isResolved: false,
+      isBottleneck: true,
+      type: 'bottleneck',
+      badgeTitle: '🟣 GARGALO NO FLUXO',
+      incidentDescription: 'Retenção operacional aguardando liberação do posto',
+      connectedNodeNames: [],
+      connectionSummary: 'Gargalo operacional de capacidade',
+      text: 'Gargalo no Fluxo',
+      details: 'Retenção operacional aguardando liberação do posto',
+      fullText: 'Gargalo: Retenção operacional aguardando liberação',
+      pdfFormattedText: `[GARGALO OPERACIONAL]\n• Retenção: Aguardando liberação do posto\n• Fluxo em espera`,
+    };
+  }
+
+  // 6. Explicit reason
+  if (explicitReason && String(explicitReason).trim()) {
+    return {
+      isInterrupted: true,
+      isResolved: false,
+      isBottleneck: false,
+      type: 'explicit_blocked',
+      badgeTitle: '⚠️ OCORRÊNCIA',
+      incidentDescription: String(explicitReason).trim(),
+      connectedNodeNames: [],
+      connectionSummary: 'Ocorrência operacional',
+      text: 'Ocorrência',
+      details: String(explicitReason).trim(),
+      fullText: `Motivo: ${String(explicitReason).trim()}`,
+      pdfFormattedText: `[OCORRÊNCIA]\n• Motivo: ${String(explicitReason).trim()}`,
+    };
+  }
+
+  // 7. Normal flow
+  return {
+    isInterrupted: false,
+    isResolved: false,
+    isBottleneck: false,
+    type: 'normal',
+    badgeTitle: 'Fluxo Normal',
+    incidentDescription: '',
+    connectedNodeNames: [],
+    connectionSummary: 'Fluxo contínuo',
+    text: 'Normal',
+    details: '',
+    fullText: 'Fluxo Normal',
+    pdfFormattedText: 'Fluxo Normal (Conexão Operacional Ativa)',
+  };
 }
 
 export const SectorReportModal: React.FC<SectorReportModalProps> = ({
@@ -148,13 +507,20 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
   sectorId,
   nodes,
   connections,
+  boards,
+  activeBoardId,
+  onSelectBoard,
 }) => {
+  // Lousa selector state inside modal
+  const [selectedBoardId, setSelectedBoardId] = useState<string>(activeBoardId || 'active');
+  const [collapsedSectorIds, setCollapsedSectorIds] = useState<Set<string>>(new Set());
+
   // Sector switcher state inside modal
   const [selectedSectorId, setSelectedSectorId] = useState<string | null>(sectorId);
   const [statusFilter, setStatusFilter] = useState<StatusFilterType>('all');
-  const [sortBy, setSortBy] = useState<SortOptionType>('deadline_asc');
+  const [sortBy, setSortBy] = useState<SortOptionType>('priority_deadline');
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState<ViewModeType>('table');
+  const [viewMode, setViewMode] = useState<ViewModeType>('sectors');
   const [detailLevel, setDetailLevel] = useState<DetailLevelType>('detailed');
 
   // Keep selected sector in sync when prop changes
@@ -162,20 +528,102 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
     setSelectedSectorId(sectorId);
   }, [sectorId]);
 
-  // List of all sector & group containers on canvas
+  // Keep selected board in sync when activeBoardId changes
+  useEffect(() => {
+    if (activeBoardId) {
+      setSelectedBoardId(activeBoardId);
+    }
+  }, [activeBoardId]);
+
+  // Effective nodes and connections based on selected board
+  const { effectiveNodes, effectiveConnections, effectiveBoardName } = useMemo(() => {
+    if (selectedBoardId === 'all' && boards && boards.length > 0) {
+      const allN: CanvasNode[] = [];
+      const allC: Connection[] = [];
+      boards.forEach((b) => {
+        const bNodes = (b.id === activeBoardId ? nodes : b.nodes) || [];
+        const bConns = (b.id === activeBoardId ? connections : b.connections) || [];
+        bNodes.forEach((n) => {
+          allN.push({
+            ...n,
+            data: {
+              ...n.data,
+              _boardId: b.id,
+              _boardName: b.name,
+            },
+          });
+        });
+        allC.push(...bConns);
+      });
+      return {
+        effectiveNodes: allN,
+        effectiveConnections: allC,
+        effectiveBoardName: 'Todas as Lousas (Consolidado)',
+      };
+    }
+
+    if (boards && boards.length > 0) {
+      const b = boards.find((bd) => bd.id === selectedBoardId);
+      if (b) {
+        const bNodes = b.id === activeBoardId ? nodes : b.nodes;
+        const bConns = b.id === activeBoardId ? connections : b.connections;
+        return {
+          effectiveNodes: (bNodes || []).map((n) => ({
+            ...n,
+            data: {
+              ...n.data,
+              _boardId: b.id,
+              _boardName: b.name,
+            },
+          })),
+          effectiveConnections: bConns || [],
+          effectiveBoardName: b.name,
+        };
+      }
+    }
+
+    return {
+      effectiveNodes: nodes.map((n) => ({
+        ...n,
+        data: {
+          ...n.data,
+          _boardId: activeBoardId || 'active',
+          _boardName: 'Lousa Atual',
+        },
+      })),
+      effectiveConnections: connections,
+      effectiveBoardName: 'Lousa Atual',
+    };
+  }, [boards, selectedBoardId, activeBoardId, nodes, connections]);
+
+  // List of all sector & group containers on effective canvas, ordered strictly by industrial flow (X coordinate from left to right)
   const availableSectors = useMemo(() => {
-    return nodes.filter(n => n.type === 'sector' || n.type === 'group');
-  }, [nodes]);
+    return effectiveNodes
+      .filter(n => n.type === 'sector' || n.type === 'group')
+      .sort((a, b) => {
+        const xa = a.x ?? 0;
+        const xb = b.x ?? 0;
+        if (Math.abs(xa - xb) > 40) {
+          return xa - xb;
+        }
+        return (a.y ?? 0) - (b.y ?? 0);
+      });
+  }, [effectiveNodes]);
 
   const isGlobal = !selectedSectorId || selectedSectorId === 'all';
   const currentSectorNode = useMemo(() => {
     if (isGlobal) return null;
-    return nodes.find(n => n.id === selectedSectorId) || null;
-  }, [nodes, selectedSectorId, isGlobal]);
+    return effectiveNodes.find(n => n.id === selectedSectorId) || null;
+  }, [effectiveNodes, selectedSectorId, isGlobal]);
+
+  // Compute spatial / logical interrupted flow connections once
+  const { interruptedConns, interrupterMap } = useMemo(() => {
+    return getInterruptedConnectionIds(effectiveNodes, effectiveConnections);
+  }, [effectiveNodes, effectiveConnections]);
 
   // Find all nodes that logically and spatially belong to this sector
   const relatedNodes = useMemo(() => {
-    const operationalNodes = nodes.filter(
+    const operationalNodes = effectiveNodes.filter(
       n => n.type !== 'text' && n.type !== 'note' && n.type !== 'group' && n.type !== 'sector'
     );
 
@@ -201,7 +649,7 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
       const d = n.data || {};
       if (
         d.sectorId === selectedSectorId ||
-        (currentSectorNode.name && (d.sector === currentSectorNode.name || d.setor === currentSectorNode.name)) ||
+        (currentSectorNode.name && (d.sector === currentSectorNode.name || d.setor === currentSectorNode.name || d.incidentSector === currentSectorNode.name)) ||
         (currentSectorNode.data?.sectorCode && d.sectorCode === currentSectorNode.data.sectorCode)
       ) {
         matchedIds.add(n.id);
@@ -240,35 +688,42 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
       }
     });
 
-    // 4. Direct connections to/from this sector node
-    connections.forEach(c => {
-      if (c.fromId === selectedSectorId) {
-        matchedIds.add(c.toId);
-      }
-      if (c.toId === selectedSectorId) {
-        matchedIds.add(c.fromId);
-      }
-    });
+    // 4. If this is an interrupted_flow node linked directly into this sector's nodes or lines
+    operationalNodes.forEach(n => {
+      if (n.type === 'interrupted_flow' && !matchedIds.has(n.id)) {
+        if (n.data?.incidentSector === currentSectorNode.name) {
+          matchedIds.add(n.id);
+        } else {
+          // Check if it interrupts any connection where the from or to node is in the sector
+          let intersectsSectorConn = false;
+          effectiveConnections.forEach(c => {
+            if (matchedIds.has(c.fromId) || matchedIds.has(c.toId)) {
+              if (interrupterMap.get(c.id)?.includes(n.id)) {
+                intersectsSectorConn = true;
+              }
+            }
+          });
 
-    // 5. Downstream connections from already matched nodes
-    const queue = Array.from(matchedIds);
-    const visited = new Set<string>();
-    while (queue.length > 0) {
-      const currId = queue.shift()!;
-      if (visited.has(currId)) continue;
-      visited.add(currId);
-
-      connections.forEach(c => {
-        if (c.fromId === currId) {
-          const target = operationalNodes.find(n => n.id === c.toId);
-          if (target && !matchedIds.has(target.id)) {
-            if (!target.groupId || target.groupId === selectedSectorId) {
-              matchedIds.add(target.id);
+          if (intersectsSectorConn) {
+            matchedIds.add(n.id);
+          } else {
+            const isDirectlyConnected = effectiveConnections.some(c => 
+              (c.fromId === n.id && matchedIds.has(c.toId)) || (c.toId === n.id && matchedIds.has(c.fromId))
+            );
+            const isConnectedToSectorWire = effectiveConnections.some(c => {
+              if (c.fromId === n.id && c.toConnectionId) {
+                const targetConn = effectiveConnections.find(tc => tc.id === c.toConnectionId);
+                return targetConn && (matchedIds.has(targetConn.fromId) || matchedIds.has(targetConn.toId));
+              }
+              return false;
+            });
+            if (isDirectlyConnected || isConnectedToSectorWire) {
+              matchedIds.add(n.id);
             }
           }
         }
-      });
-    }
+      }
+    });
 
     const filtered = operationalNodes.filter(n => matchedIds.has(n.id));
 
@@ -279,20 +734,22 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
     }
 
     return filtered;
-  }, [nodes, connections, selectedSectorId, currentSectorNode, isGlobal, availableSectors]);
+  }, [effectiveNodes, effectiveConnections, selectedSectorId, currentSectorNode, isGlobal, availableSectors, interrupterMap]);
 
   // Detailed records with deadlines and progress calculated
   const detailedNodes = useMemo(() => {
     return relatedNodes.map(node => {
-      const progress = calculateNodeProgress(node, nodes, connections);
+      const progress = calculateNodeProgress(node, effectiveNodes, effectiveConnections);
       const deadlineInfo = getNodeDeadlineInfo(node);
-      const isBottleneck = isNodeBottleneck(node, nodes, connections);
+      const isBottleneck = isNodeBottleneck(node, effectiveNodes, effectiveConnections);
 
       const rawStart =
         node.data?.startDate ||
         node.data?.prazoInicial ||
         node.data?.dataInicio ||
         node.data?.initialDate ||
+        node.data?.incidentDate ||
+        (node.type === 'order' ? node.data?.orderDate : undefined) ||
         (node.createdAt && node.createdAt.includes('-') ? node.createdAt.slice(0, 10) : undefined);
 
       const rawDeadline =
@@ -306,7 +763,10 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
         node.data?.dataLimite ||
         node.data?.dataEntrega ||
         node.data?.prazo ||
+        node.data?.incidentResolutionDate ||
         (node.type === 'deadline' ? (node.data as any).targetDate : undefined);
+
+      const interruptionInfo = getNodeInterruptionInfo(node, effectiveNodes, effectiveConnections, isBottleneck, availableSectors, interrupterMap);
 
       const isCompleted =
         progress === 100 ||
@@ -314,21 +774,37 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
         (node.status as string) === 'Entregue' ||
         (node.data as any)?.status === 'Concluído' ||
         (node.data as any)?.status === 'Entregue' ||
+        (node.type === 'interrupted_flow' && Boolean(node.data?.isResolved)) ||
         deadlineInfo.state === 'completed';
 
-      const isDelayed = !isCompleted && (deadlineInfo.state === 'delayed' || node.status === 'Atrasado');
-      const isWarning = !isCompleted && !isDelayed && (deadlineInfo.state === 'warning' || (deadlineInfo.daysRemaining !== null && deadlineInfo.daysRemaining >= 0 && deadlineInfo.daysRemaining <= 3));
+      const isDelayed =
+        !isCompleted &&
+        (deadlineInfo.state === 'delayed' ||
+          node.status === 'Atrasado' ||
+          (node.type === 'interrupted_flow' && !node.data?.isResolved) ||
+          (interruptionInfo.isInterrupted && !interruptionInfo.isResolved));
+
+      const isWarning =
+        !isCompleted &&
+        !isDelayed &&
+        (deadlineInfo.state === 'warning' ||
+          (deadlineInfo.daysRemaining !== null && deadlineInfo.daysRemaining >= 0 && deadlineInfo.daysRemaining <= 3));
+
       const isInProgress = !isCompleted && !isDelayed && (progress > 0 || node.status === 'Em Andamento');
       const isPending = !isCompleted && !isDelayed && !isWarning && !isInProgress;
 
-      const sectorName = getNodeSectorName(node, availableSectors);
-      const salesOrder = getSalesOrderForNode(node, nodes, connections);
+      const sectorName = getNodeSectorName(node, availableSectors, effectiveNodes, effectiveConnections);
+      const salesOrder = getSalesOrderForNode(node, effectiveNodes, effectiveConnections);
+      const boardName = (node.data?._boardName as string) || effectiveBoardName;
+      const quadroName = getNodeDisplayName(node);
 
       return {
         node,
+        quadroName,
         progress,
         deadlineInfo,
         isBottleneck,
+        interruptionInfo,
         isCompleted,
         isDelayed,
         isWarning,
@@ -340,9 +816,10 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
         endFormatted: formatDisplayDate(rawDeadline),
         sectorName,
         salesOrder,
+        boardName,
       };
     });
-  }, [relatedNodes, nodes, connections, availableSectors]);
+  }, [relatedNodes, effectiveNodes, effectiveConnections, availableSectors, effectiveBoardName]);
 
   // Aggregate stats
   const stats = useMemo(() => {
@@ -386,7 +863,7 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
 
     // Resource calculations
     const activeWorkers = isGlobal 
-      ? nodes.filter(n => n.type === 'employee').length 
+      ? effectiveNodes.filter(n => n.type === 'employee').length 
       : (Number(currentSectorNode?.data?.activeWorkers) || relatedNodes.filter(n => n.type === 'employee').length || 0);
 
     const activeMachines = isGlobal
@@ -454,7 +931,7 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       result = result.filter(d => {
-        const name = d.node.name?.toLowerCase() || '';
+        const name = (d.quadroName || d.node.name || '').toLowerCase();
         const type = d.node.type?.toLowerCase() || '';
         const sector = d.sectorName?.toLowerCase() || '';
         const resp = (d.node.data?.responsible || d.node.data?.supervisorName || '').toLowerCase();
@@ -466,6 +943,65 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
 
     // Sort
     result.sort((a, b) => {
+      if (sortBy === 'priority_deadline') {
+        const getPriorityWeight = (item: typeof a) => {
+          const p = String(item.node.data?.priority || item.node.data?.orderPriority || '').toLowerCase().trim();
+          if (p === 'urgente' || p === 'crítica' || p === 'critica' || p === 'urgent' || p === 'critical') return 1;
+          if (p === 'alta' || p === 'high') return 2;
+          if (p === 'média' || p === 'media' || p === 'medium' || p === 'normal') return 3;
+          if (p === 'baixa' || p === 'low') return 4;
+          if (item.isBottleneck || item.interruptionInfo.isInterrupted) return 1;
+          return 3;
+        };
+
+        const getDeadlineWeight = (item: typeof a) => {
+          if (item.isCompleted) return 100000;
+          if (item.isDelayed && item.deadlineInfo.daysRemaining !== null) {
+            return item.deadlineInfo.daysRemaining; // e.g. -15 comes before -2
+          }
+          if (item.isDelayed) return -1;
+          if (item.deadlineInfo.daysRemaining !== null) {
+            return item.deadlineInfo.daysRemaining; // e.g. 0 (today) < 1 < 3 < 10
+          }
+          if (item.rawDeadline) {
+            const d = parseDateString(item.rawDeadline);
+            if (d) return Math.floor(d.getTime() / (1000 * 60 * 60 * 24));
+          }
+          return 50000;
+        };
+
+        const pA = getPriorityWeight(a);
+        const pB = getPriorityWeight(b);
+        if (pA !== pB) return pA - pB;
+
+        const dA = getDeadlineWeight(a);
+        const dB = getDeadlineWeight(b);
+        if (dA !== dB) return dA - dB;
+
+        return (a.quadroName || a.node.name).localeCompare(b.quadroName || b.node.name);
+      }
+
+      if (sortBy === 'flow_asc') {
+        const getSectorRank = (item: typeof a) => {
+          if (item.node.groupId) {
+            const idx = availableSectors.findIndex(s => s.id === item.node.groupId);
+            if (idx !== -1) return idx;
+          }
+          const sName = (item.sectorName || '').toLowerCase().trim();
+          const idx = availableSectors.findIndex(s => s.name.toLowerCase().trim() === sName);
+          if (idx !== -1) return idx;
+          return 999;
+        };
+        const rankA = getSectorRank(a);
+        const rankB = getSectorRank(b);
+        if (rankA !== rankB) return rankA - rankB;
+        // Inside same sector, sort by vertical position Y then X (process sequence)
+        const ya = a.node.y ?? 0;
+        const yb = b.node.y ?? 0;
+        if (Math.abs(ya - yb) > 40) return ya - yb;
+        return (a.node.x ?? 0) - (b.node.x ?? 0);
+      }
+
       if (sortBy === 'deadline_asc') {
         // Overdue first (most negative first)
         if (a.isDelayed && !b.isDelayed) return -1;
@@ -511,23 +1047,167 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
       }
 
       if (sortBy === 'name_asc') {
-        return a.node.name.localeCompare(b.node.name);
+        return (a.quadroName || a.node.name).localeCompare(b.quadroName || b.node.name);
       }
 
       return 0;
     });
 
     return result;
-  }, [detailedNodes, statusFilter, searchQuery, sortBy]);
+  }, [detailedNodes, statusFilter, searchQuery, sortBy, availableSectors]);
+
+  // Groups of nodes organized by Sector / Area
+  const sectorGroups = useMemo(() => {
+    const groupsMap = new Map<string, {
+      sectorId: string;
+      sectorName: string;
+      sectorCode: string;
+      sectorColor?: string;
+      sectorNode: CanvasNode | null;
+      stepIndex: number;
+      items: typeof filteredAndSortedNodes;
+    }>();
+
+    availableSectors.forEach((s, idx) => {
+      groupsMap.set(s.id, {
+        sectorId: s.id,
+        sectorName: s.name,
+        sectorCode: s.data?.sectorCode || 'ST-' + s.name.slice(0, 3).toUpperCase(),
+        sectorColor: s.color,
+        sectorNode: s,
+        stepIndex: idx + 1,
+        items: [],
+      });
+    });
+
+    const generalGroup = {
+      sectorId: 'unassigned',
+      sectorName: 'Área Geral / Sem Setor Delimitado',
+      sectorCode: 'ST-GERAL',
+      sectorColor: 'slate',
+      sectorNode: null,
+      stepIndex: availableSectors.length + 1,
+      items: [] as typeof filteredAndSortedNodes,
+    };
+
+    filteredAndSortedNodes.forEach(item => {
+      // 1. Direct match if filtered by single sector
+      if (!isGlobal && currentSectorNode) {
+        if (groupsMap.has(currentSectorNode.id)) {
+          groupsMap.get(currentSectorNode.id)!.items.push(item);
+          return;
+        }
+      }
+
+      // 2. Direct parent groupId
+      if (item.node.groupId && groupsMap.has(item.node.groupId)) {
+        groupsMap.get(item.node.groupId)!.items.push(item);
+        return;
+      }
+
+      // 3. Sector ID in data
+      if (item.node.data?.sectorId && groupsMap.has(item.node.data.sectorId)) {
+        groupsMap.get(item.node.data.sectorId)!.items.push(item);
+        return;
+      }
+
+      // 4. Match by name or geometric containment
+      const match = availableSectors.find(s =>
+        s.name === item.sectorName ||
+        (s.data?.sectorCode && item.node.data?.sectorCode === s.data?.sectorCode) ||
+        isNodeInsideGroup(item.node, s)
+      );
+
+      if (match && groupsMap.has(match.id)) {
+        groupsMap.get(match.id)!.items.push(item);
+      } else {
+        generalGroup.items.push(item);
+      }
+    });
+
+    const list = !isGlobal && currentSectorNode
+      ? [
+          groupsMap.get(currentSectorNode.id) || {
+            sectorId: currentSectorNode.id,
+            sectorName: currentSectorNode.name,
+            sectorCode: currentSectorNode.data?.sectorCode || 'ST-' + currentSectorNode.name.slice(0, 3).toUpperCase(),
+            sectorColor: currentSectorNode.color,
+            sectorNode: currentSectorNode,
+            stepIndex: 1,
+            items: [],
+          },
+        ]
+      : Array.from(groupsMap.values());
+
+    if (isGlobal && generalGroup.items.length > 0) {
+      list.push(generalGroup);
+    }
+
+    // When global, filter out empty groups if user is searching or applying status filters
+    const displayList = isGlobal && (searchQuery || statusFilter !== 'all')
+      ? list.filter(g => g.items.length > 0)
+      : list;
+
+    return displayList.map(g => {
+      // Sort items within sector according to flow sequence (top-to-bottom, left-to-right)
+      const sortedItems = [...g.items].sort((a, b) => {
+        const ya = a.node.y ?? 0;
+        const yb = b.node.y ?? 0;
+        if (Math.abs(ya - yb) > 40) return ya - yb;
+        return (a.node.x ?? 0) - (b.node.x ?? 0);
+      });
+
+      const gTotal = sortedItems.length;
+      const gCompleted = sortedItems.filter(i => i.isCompleted).length;
+      const gDelayed = sortedItems.filter(i => i.isDelayed).length;
+      const gWarning = sortedItems.filter(i => i.isWarning).length;
+      const gInProgress = sortedItems.filter(i => i.isInProgress).length;
+      const gPending = sortedItems.filter(i => i.isPending).length;
+      const gAvgProg = gTotal > 0 ? Math.round(sortedItems.reduce((acc, i) => acc + i.progress, 0) / gTotal) : 0;
+      const gOnTime = gTotal > 0 ? Math.round(((gTotal - gDelayed) / gTotal) * 100) : 100;
+
+      return {
+        ...g,
+        items: sortedItems,
+        stats: {
+          total: gTotal,
+          completed: gCompleted,
+          delayed: gDelayed,
+          warning: gWarning,
+          inProgress: gInProgress,
+          pending: gPending,
+          averageProgress: gAvgProg,
+          onTimeRate: gOnTime,
+        }
+      };
+    });
+  }, [availableSectors, filteredAndSortedNodes, isGlobal, currentSectorNode, searchQuery, statusFilter]);
+
+  const toggleSectorCollapse = (secId: string) => {
+    setCollapsedSectorIds(prev => {
+      const next = new Set(prev);
+      if (next.has(secId)) next.delete(secId);
+      else next.add(secId);
+      return next;
+    });
+  };
+
+  const expandAllSectors = () => setCollapsedSectorIds(new Set());
+  const collapseAllSectors = () => {
+    const allSecIds = sectorGroups.map(g => g.sectorId);
+    setCollapsedSectorIds(new Set(allSecIds));
+  };
 
   // Export CSV
   const handleExportCSV = () => {
     const headers = [
-      'Nome do Quadro',
+      'Lousa',
+      'Nome',
       'Tipo de Bloco',
       'Pedido de Venda',
       'Setor',
       'Status Operacional',
+      'Fluxo Interrompido / Motivos',
       'Prazo Inicial',
       'Prazo Final',
       'Dias Restantes',
@@ -541,11 +1221,13 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
     ];
 
     const rows = filteredAndSortedNodes.map(item => [
-      `"${(item.node.name || '').replace(/"/g, '""')}"`,
+      `"${(item.boardName || effectiveBoardName).replace(/"/g, '""')}"`,
+      `"${(item.quadroName || item.node.name || '').replace(/"/g, '""')}"`,
       `"${item.node.type}"`,
       `"${(item.salesOrder || '---').replace(/"/g, '""')}"`,
       `"${item.sectorName}"`,
       `"${item.isCompleted ? 'Concluído' : item.isDelayed ? 'Atrasado' : item.isWarning ? 'Em Alerta' : item.isInProgress ? 'Em Andamento' : 'Pendente'}"`,
+      `"${(item.interruptionInfo.isInterrupted ? item.interruptionInfo.fullText : 'Fluxo Normal').replace(/"/g, '""')}"`,
       `"${item.startFormatted}"`,
       `"${item.endFormatted}"`,
       `"${item.deadlineInfo.daysRemaining ?? ''}"`,
@@ -563,7 +1245,7 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    const fileName = `relatorio_setor_${(currentSectorNode?.name || 'geral').toLowerCase().replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`;
+    const fileName = `relatorio_${effectiveBoardName.toLowerCase().replace(/\s+/g, '_')}_${(currentSectorNode?.name || 'geral').toLowerCase().replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`;
     a.download = fileName;
     a.click();
     URL.revokeObjectURL(url);
@@ -578,7 +1260,9 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
         format: 'a4',
       });
 
-      const sectorTitle = isGlobal ? 'Relatório Executivo Geral de Setores' : `Relatório do Setor: ${currentSectorNode?.name || 'Setor'}`;
+      const sectorTitle = selectedBoardId === 'all'
+        ? 'Relatório Executivo Consolidado de Todas as Lousas'
+        : `Relatório Executivo por Lousa: ${effectiveBoardName}`;
       const sectorCode = currentSectorNode?.data?.sectorCode || (isGlobal ? 'ST-GERAL' : 'ST-ALPHA');
       const emissionDate = new Date().toLocaleDateString('pt-BR');
       const emissionTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -593,14 +1277,14 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
 
       // Header text
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(15);
+      doc.setFontSize(14);
       doc.setTextColor(255, 255, 255);
       doc.text(sectorTitle, 14, 12);
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8.5);
       doc.setTextColor(148, 163, 184); // slate-400
-      doc.text(`CÓDIGO: ${sectorCode}   |   EMISSÃO: ${emissionDate} às ${emissionTime}   |   CONFORMIDADE DE PRAZO: ${stats.onTimeRate}%`, 14, 20);
+      doc.text(`LOUSA: ${effectiveBoardName.toUpperCase()}   |   SETOR: ${isGlobal ? 'TODOS OS SETORES' : (currentSectorNode?.name || 'SETOR').toUpperCase()}   |   EMISSÃO: ${emissionDate} às ${emissionTime}   |   CONFORMIDADE: ${stats.onTimeRate}%`, 14, 20);
 
       // Right header badge
       doc.setFont('helvetica', 'bold');
@@ -609,13 +1293,22 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
       doc.text(`${stats.total} Quadros Monitorados`, 283, 15, { align: 'right' });
 
       // KPI Summary cards
+      const commercialNodes = filteredAndSortedNodes.filter(d => 
+        (d.sectorName && (d.sectorName.toLowerCase().includes('comercial') || d.sectorName.toLowerCase().includes('venda'))) ||
+        d.node.type === 'order' ||
+        d.node.type === 'budget' ||
+        (d.salesOrder && d.salesOrder !== '---')
+      );
+
       const kpis = [
         { label: 'TOTAL QUADROS', value: `${stats.total}`, color: [15, 23, 42] },
+        isGlobal
+          ? { label: 'SETOR COMERCIAL / PEDIDOS', value: `${commercialNodes.length}`, color: [13, 148, 136] }
+          : { label: 'CONFORMIDADE DO SETOR', value: `${stats.onTimeRate}%`, color: [13, 148, 136] },
         { label: 'CONCLUÍDOS', value: `${stats.completed} (${stats.total > 0 ? Math.round((stats.completed/stats.total)*100) : 0}%)`, color: [16, 185, 129] },
         { label: 'EM ANDAMENTO', value: `${stats.inProgress}`, color: [59, 130, 246] },
         { label: 'EM ALERTA (<=3d)', value: `${stats.warning}`, color: [245, 158, 11] },
         { label: 'ATRASADOS', value: `${stats.delayed}`, color: [225, 29, 72] },
-        { label: 'PROGRESSO MÉDIO', value: `${stats.averageProgress}%`, color: [13, 148, 136] },
       ];
 
       const boxW = 43;
@@ -644,92 +1337,58 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
         doc.text(kpi.value, bx + 3, startY + 12);
       });
 
-      // Table Data (Simplified vs Detailed)
-      const isSimplifiedPDF = detailLevel === 'simplified';
-
-      const tableHeaders = isSimplifiedPDF
-        ? [['Quadro / Atividade', 'Ped. Venda', 'Setor', 'Status', 'Prazo Final', 'Avanço', 'Responsável']]
-        : [['Quadro / Atividade', 'Ped. Venda', 'Tipo / Código', 'Setor', 'Status Operacional', 'Início', 'Prazo Final', 'Restante', 'Diagnóstico do Prazo', 'Avanço', 'Qtd / Prioridade', 'Responsável']];
+      // Table Data: Setor, Nome, Início, Prazo Final, Faltam (Dias), Status e Fluxo Interrompido / Motivos
+      const tableHeaders = [['Setor', 'Nome', 'Início', 'Prazo Final', 'Faltam (Dias)', 'Status', 'Fluxo Interrompido / Motivos']];
 
       const tableRows = filteredAndSortedNodes.map(item => {
         const statusText = item.isCompleted 
           ? 'Concluído' 
           : item.isDelayed 
-            ? 'Atrasado' 
+            ? item.interruptionInfo.isInterrupted 
+              ? 'Interrompido' 
+              : 'Atrasado' 
             : item.isWarning 
               ? 'Em Alerta' 
               : item.isInProgress 
                 ? 'Em Andamento' 
                 : 'Pendente';
 
-        const daysText = item.isCompleted 
-          ? 'Finalizado' 
-          : item.deadlineInfo.daysRemaining !== null 
-            ? `${item.deadlineInfo.daysRemaining}d` 
-            : '---';
+        const interruptionText = item.interruptionInfo.pdfFormattedText;
 
-        const extraInfo = [
-          item.node.data?.quantity ? `${item.node.data.quantity} un` : '',
-          item.node.data?.priority ? item.node.data.priority : ''
-        ].filter(Boolean).join(' • ') || '---';
-
-        const typeAndCode = [
-          item.node.type || 'Quadro',
-          item.node.data?.code ? `#${item.node.data.code}` : ''
-        ].filter(Boolean).join(' ');
-
-        if (isSimplifiedPDF) {
-          return [
-            item.node.name || 'Sem nome',
-            item.salesOrder || '---',
-            item.sectorName || 'Geral',
-            statusText,
-            item.endFormatted || '---',
-            `${item.progress}%`,
-            item.node.data?.responsible || item.node.data?.supervisorName || 'Equipe'
-          ];
-        }
+        const daysRemainingText = item.isCompleted
+          ? 'Finalizado'
+          : item.deadlineInfo.daysRemaining !== null && item.deadlineInfo.daysRemaining !== undefined
+            ? item.deadlineInfo.daysRemaining < 0
+              ? `Atrasado (${Math.abs(item.deadlineInfo.daysRemaining)}d)`
+              : item.deadlineInfo.daysRemaining === 0
+                ? 'Vence Hoje!'
+                : item.deadlineInfo.daysRemaining === 1
+                  ? 'Falta 1 dia'
+                  : `Faltam ${item.deadlineInfo.daysRemaining} dias`
+            : item.interruptionInfo.isInterrupted
+              ? 'Bloqueado'
+              : 'Sem prazo';
 
         return [
-          item.node.name || 'Sem nome',
-          item.salesOrder || '---',
-          typeAndCode,
           item.sectorName || 'Geral',
-          statusText,
+          item.quadroName || item.node.name || 'Sem nome',
           item.startFormatted || '---',
           item.endFormatted || '---',
-          daysText,
-          item.deadlineInfo.badgeText || item.deadlineInfo.reason || (item.deadlineInfo.daysRemaining !== null ? `Restam ${item.deadlineInfo.daysRemaining}d` : 'Sem prazo'),
-          `${item.progress}%`,
-          extraInfo,
-          item.node.data?.responsible || item.node.data?.supervisorName || 'Equipe'
+          daysRemainingText,
+          statusText,
+          interruptionText,
         ];
       });
 
-      const columnStylesConfig = isSimplifiedPDF
-        ? {
-            0: { cellWidth: 70, fontStyle: 'bold' as const },
-            1: { cellWidth: 32, fontStyle: 'bold' as const },
-            2: { cellWidth: 38 },
-            3: { cellWidth: 35, fontStyle: 'bold' as const },
-            4: { cellWidth: 28 },
-            5: { cellWidth: 22, halign: 'center' as const, fontStyle: 'bold' as const },
-            6: { cellWidth: 44 },
-          }
-        : {
-            0: { cellWidth: 38, fontStyle: 'bold' as const },
-            1: { cellWidth: 26, fontStyle: 'bold' as const },
-            2: { cellWidth: 20 },
-            3: { cellWidth: 22 },
-            4: { cellWidth: 22, fontStyle: 'bold' as const },
-            5: { cellWidth: 16 },
-            6: { cellWidth: 16 },
-            7: { cellWidth: 15, halign: 'center' as const },
-            8: { cellWidth: 32 },
-            9: { cellWidth: 15, halign: 'center' as const, fontStyle: 'bold' as const },
-            10: { cellWidth: 24 },
-            11: { cellWidth: 23 },
-          };
+      const columnStylesConfig = {
+        0: { cellWidth: 28, fontStyle: 'bold' as const, overflow: 'linebreak' as const },
+        1: { cellWidth: 46, fontStyle: 'bold' as const, overflow: 'linebreak' as const },
+        2: { cellWidth: 22, halign: 'center' as const },
+        3: { cellWidth: 24, halign: 'center' as const, fontStyle: 'bold' as const },
+        4: { cellWidth: 24, halign: 'center' as const, fontStyle: 'bold' as const },
+        5: { cellWidth: 24, halign: 'center' as const, fontStyle: 'bold' as const },
+        6: { cellWidth: 101, fontSize: 6.8, overflow: 'linebreak' as const, cellPadding: 2 },
+      };
 
       autoTable(doc, {
         head: tableHeaders,
@@ -741,14 +1400,14 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
           fillColor: [15, 23, 42],
           textColor: [255, 255, 255],
           fontStyle: 'bold',
-          fontSize: isSimplifiedPDF ? 8.5 : 7.5,
+          fontSize: 8.5,
           halign: 'left',
-          cellPadding: isSimplifiedPDF ? 3 : 2.2,
+          cellPadding: 2.8,
         },
         bodyStyles: {
-          fontSize: isSimplifiedPDF ? 8 : 7,
+          fontSize: 8,
           textColor: [30, 41, 59],
-          cellPadding: isSimplifiedPDF ? 2.5 : 1.8,
+          cellPadding: 2.2,
         },
         alternateRowStyles: {
           fillColor: [248, 250, 252],
@@ -756,30 +1415,103 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
         columnStyles: columnStylesConfig,
         didParseCell: (data) => {
           if (data.section === 'body') {
-            const statusColIdx = isSimplifiedPDF ? 3 : 4;
-            const progressColIdx = isSimplifiedPDF ? 5 : 9;
-
-            if (data.column.index === statusColIdx) {
-              const val = String(data.cell.raw);
-              if (val === 'Atrasado') {
-                data.cell.styles.textColor = [225, 29, 72];
-                data.cell.styles.fontStyle = 'bold';
-              } else if (val === 'Em Alerta') {
-                data.cell.styles.textColor = [217, 119, 6];
-                data.cell.styles.fontStyle = 'bold';
-              } else if (val === 'Concluído') {
-                data.cell.styles.textColor = [16, 185, 129];
-                data.cell.styles.fontStyle = 'bold';
-              } else if (val === 'Em Andamento') {
-                data.cell.styles.textColor = [37, 99, 235];
+            const rowIndex = data.row.index;
+            const item = filteredAndSortedNodes[rowIndex];
+            if (item) {
+              // Cor do fundo da linha com base no Status
+              if (item.isDelayed) {
+                data.cell.styles.fillColor = [254, 226, 226]; // Rose-100 / Vermelho suave
+              } else if (item.isWarning) {
+                data.cell.styles.fillColor = [254, 243, 199]; // Amber-100 / Amarelo suave
+              } else if (item.isCompleted) {
+                data.cell.styles.fillColor = [236, 253, 245]; // Emerald-50 / Verde suave
+              } else if (item.isInProgress) {
+                data.cell.styles.fillColor = [239, 246, 255]; // Blue-50 / Azul suave
+              } else if (item.interruptionInfo.isInterrupted || item.isBottleneck) {
+                data.cell.styles.fillColor = [250, 232, 255]; // Purple-50 / Roxo suave
+              } else {
+                data.cell.styles.fillColor = rowIndex % 2 === 0 ? [255, 255, 255] : [248, 250, 252];
               }
-            }
-            if (data.column.index === progressColIdx) {
-              const pVal = parseInt(String(data.cell.raw)) || 0;
-              if (pVal === 100) {
-                data.cell.styles.textColor = [16, 185, 129];
-              } else if (pVal > 0) {
-                data.cell.styles.textColor = [37, 99, 235];
+
+              const isCommercial = (
+                (item.sectorName && (item.sectorName.toLowerCase().includes('comercial') || item.sectorName.toLowerCase().includes('venda'))) ||
+                item.node.type === 'order' ||
+                item.node.type === 'budget' ||
+                (item.salesOrder && item.salesOrder !== '---')
+              );
+
+              // Destaque do Setor Comercial
+              if (isCommercial && data.column.index === 0) {
+                data.cell.styles.textColor = [13, 148, 136]; // Teal-600
+                data.cell.styles.fontStyle = 'bold';
+              }
+
+              // Destaque de Prazo Final
+              if (data.column.index === 3) {
+                data.cell.styles.fontStyle = 'bold';
+                if (isCommercial) {
+                  data.cell.styles.textColor = [15, 23, 42]; // Preto Slate forte
+                }
+              }
+
+              // Destaque de Quantos Dias Faltam (Coluna 4)
+              if (data.column.index === 4) {
+                const val = String(data.cell.raw);
+                data.cell.styles.fontStyle = 'bold';
+                if (val.startsWith('Atrasado')) {
+                  data.cell.styles.textColor = [225, 29, 72]; // Rose-600
+                } else if (val.includes('Hoje') || val.includes('1 dia') || (item.deadlineInfo.daysRemaining !== null && item.deadlineInfo.daysRemaining <= 3 && !item.isCompleted)) {
+                  data.cell.styles.textColor = [217, 119, 6]; // Amber-600
+                } else if (val === 'Finalizado') {
+                  data.cell.styles.textColor = [16, 185, 129]; // Emerald-600
+                } else if (isCommercial) {
+                  data.cell.styles.textColor = [13, 148, 136]; // Teal-600 destacado para Comercial
+                } else {
+                  data.cell.styles.textColor = [71, 85, 105]; // Slate-600
+                }
+              }
+
+              // Status Operacional (Coluna 5)
+              if (data.column.index === 5) {
+                const val = String(data.cell.raw);
+                if (val === 'Atrasado' || val === 'Interrompido') {
+                  data.cell.styles.textColor = [225, 29, 72];
+                  data.cell.styles.fontStyle = 'bold';
+                } else if (val === 'Em Alerta') {
+                  data.cell.styles.textColor = [217, 119, 6];
+                  data.cell.styles.fontStyle = 'bold';
+                } else if (val === 'Concluído') {
+                  data.cell.styles.textColor = [16, 185, 129];
+                  data.cell.styles.fontStyle = 'bold';
+                } else if (val === 'Em Andamento') {
+                  data.cell.styles.textColor = [37, 99, 235];
+                  data.cell.styles.fontStyle = 'bold';
+                } else {
+                  data.cell.styles.textColor = [100, 116, 139];
+                }
+              }
+
+              // Fluxo Interrompido / Motivos (Coluna 6)
+              if (data.column.index === 6) {
+                const val = String(data.cell.raw);
+                data.cell.styles.overflow = 'linebreak';
+                data.cell.styles.fontSize = 6.8;
+                data.cell.styles.cellPadding = 2;
+                if (
+                  val.includes('[LIGAÇÃO BLOQUEADA]') ||
+                  val.includes('[FLUXO INTERROMPIDO]') ||
+                  val.includes('[BLOQUEIO') ||
+                  val.includes('Interrompido') ||
+                  val.includes('Bloqueado')
+                ) {
+                  data.cell.styles.textColor = [190, 18, 60]; // Rose-700 escuro para legibilidade perfeita
+                } else if (val.includes('[FLUXO NORMALIZADO]') || val.includes('Normalizado')) {
+                  data.cell.styles.textColor = [4, 120, 87]; // Emerald-700
+                } else if (val.includes('[GARGALO')) {
+                  data.cell.styles.textColor = [126, 34, 206]; // Purple-700
+                } else {
+                  data.cell.styles.textColor = [100, 116, 139];
+                }
               }
             }
           }
@@ -790,12 +1522,12 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
           doc.setFontSize(8);
           doc.setTextColor(148, 163, 184);
           doc.text(
-            `Página ${data.pageNumber} de ${pageCount}  •  Modo: ${isSimplifiedPDF ? 'Visão Simplificada (Essencial)' : 'Visão Detalhada (Completa)'}  •  Gestão de Prazos & Operações`,
+            `Página ${data.pageNumber} de ${pageCount}  •  Relatório Operacional  •  Gestão de Prazos & Operações`,
             14,
             204
           );
           doc.text(
-            `Exportado em ${emissionDate} ${emissionTime}`,
+            `Exportado em ${emissionDate} às ${emissionTime}`,
             283,
             204,
             { align: 'right' }
@@ -841,22 +1573,33 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
           className="relative w-full max-w-6xl h-[92vh] bg-slate-900 border border-emerald-500/30 rounded-2xl shadow-2xl overflow-hidden flex flex-col pointer-events-auto text-slate-100"
         >
           {/* Header */}
-          <div className="p-4 sm:p-6 border-b border-white/10 bg-slate-950/60 flex flex-wrap items-center justify-between gap-4">
+          <div className="p-4 sm:p-6 border-b border-white/10 bg-slate-950/70 flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
               <div className="p-3 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.25)]">
                 <FileText className="w-6 h-6" />
               </div>
               <div>
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2.5 flex-wrap">
                   <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-                    {isGlobal ? 'Relatório Executivo Geral de Setores' : `Relatório do Setor: ${currentSectorNode?.name}`}
+                    {selectedBoardId === 'all'
+                      ? 'Relatório Consolidado de Todas as Lousas'
+                      : isGlobal
+                        ? `Relatório por Lousa: ${effectiveBoardName}`
+                        : `Relatório: ${currentSectorNode?.name} (${effectiveBoardName})`}
                   </h2>
                   <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
                     {stats.total} Quadros
                   </span>
+                  {availableSectors.length > 0 && (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+                      {availableSectors.length} Áreas/Setores
+                    </span>
+                  )}
                 </div>
-                <div className="flex items-center gap-3 text-slate-400 text-xs font-mono mt-0.5">
-                  <span>CÓDIGO: {currentSectorNode?.data?.sectorCode || 'ST-GERAL'}</span>
+                <div className="flex items-center gap-2.5 text-slate-400 text-xs font-mono mt-0.5 flex-wrap">
+                  <span className="text-cyan-400 font-bold">LOUSA: {effectiveBoardName.toUpperCase()}</span>
+                  <span>•</span>
+                  <span>CÓDIGO: {currentSectorNode?.data?.sectorCode || (isGlobal ? 'ST-GERAL' : 'ST-ALPHA')}</span>
                   <span>•</span>
                   <span>DATA: {new Date().toLocaleDateString('pt-BR')}</span>
                   <span>•</span>
@@ -865,19 +1608,63 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
               </div>
             </div>
 
-            {/* Sector Selector & Actions */}
+            {/* Board Selector, Sector Selector & Actions */}
             <div className="flex items-center flex-wrap gap-2">
+              {/* Lousa Selector */}
+              <div className="flex items-center gap-1.5 bg-slate-800/90 rounded-lg p-1 border border-slate-700/80">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1.5 hidden md:inline">
+                  Lousa:
+                </span>
+                <div className="relative">
+                  <select
+                    value={selectedBoardId}
+                    onChange={(e) => {
+                      setSelectedBoardId(e.target.value);
+                      setSelectedSectorId(null);
+                    }}
+                    className="bg-slate-900 hover:bg-slate-950 text-cyan-300 text-xs font-bold rounded-md px-2.5 py-1.5 border border-cyan-500/30 focus:outline-none focus:border-cyan-400 transition-colors cursor-pointer pr-7 shadow-inner"
+                    title="Selecione a lousa para gerar o relatório"
+                  >
+                    <option value="all">🌐 Todas as Lousas</option>
+                    {boards && boards.length > 0 ? (
+                      boards.map(b => (
+                        <option key={b.id} value={b.id}>
+                          📋 {b.name} {b.id === activeBoardId ? '(Ativa)' : ''}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="active">📋 Lousa Atual</option>
+                    )}
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 text-cyan-400 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+
+                {/* Quick Activate Board on Canvas Button */}
+                {onSelectBoard && selectedBoardId !== 'all' && selectedBoardId !== activeBoardId && (
+                  <button
+                    type="button"
+                    onClick={() => onSelectBoard(selectedBoardId)}
+                    className="p-1.5 rounded-md bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer"
+                    title="Mudar para esta lousa no Canvas"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    <span className="hidden xl:inline">Ir ao Canvas</span>
+                  </button>
+                )}
+              </div>
+
               {/* Sector Dropdown */}
               <div className="relative">
                 <select
                   value={selectedSectorId || 'all'}
                   onChange={(e) => setSelectedSectorId(e.target.value === 'all' ? null : e.target.value)}
                   className="bg-slate-800/90 hover:bg-slate-800 text-slate-200 text-xs font-medium rounded-lg px-3 py-2 border border-slate-700 focus:outline-none focus:border-emerald-500 transition-colors cursor-pointer pr-8"
+                  title="Filtrar por Área ou Setor"
                 >
-                  <option value="all">🌐 Todos os Setores (Consolidado)</option>
+                  <option value="all">📁 Todos os Setores (Consolidado)</option>
                   {availableSectors.map(s => (
                     <option key={s.id} value={s.id}>
-                      📁 {s.name} ({s.data?.sectorCode || 'Setor'})
+                      🏢 {s.name} ({s.data?.sectorCode || 'Setor'})
                     </option>
                   ))}
                 </select>
@@ -1277,12 +2064,14 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
                       onChange={(e) => setSortBy(e.target.value as SortOptionType)}
                       className="bg-transparent text-slate-200 focus:outline-none cursor-pointer pr-1"
                     >
-                      <option value="deadline_asc">Prazo: Mais Urgentes</option>
-                      <option value="deadline_desc">Prazo: Mais Distantes</option>
-                      <option value="status_urgency">Status: Mais Críticos</option>
-                      <option value="progress_desc">Avanço: Maior %</option>
-                      <option value="progress_asc">Avanço: Menor %</option>
-                      <option value="name_asc">Nome: A-Z</option>
+                      <option value="priority_deadline" className="bg-slate-900 text-slate-100">Prioridade & Prazo de Entrega</option>
+                      <option value="deadline_asc" className="bg-slate-900 text-slate-100">Prazo: Mais Urgentes</option>
+                      <option value="status_urgency" className="bg-slate-900 text-slate-100">Status: Mais Críticos</option>
+                      <option value="flow_asc" className="bg-slate-900 text-slate-100">Sequência do Fluxo</option>
+                      <option value="deadline_desc" className="bg-slate-900 text-slate-100">Prazo: Mais Distantes</option>
+                      <option value="progress_desc" className="bg-slate-900 text-slate-100">Avanço: Maior %</option>
+                      <option value="progress_asc" className="bg-slate-900 text-slate-100">Avanço: Menor %</option>
+                      <option value="name_asc" className="bg-slate-900 text-slate-100">Nome: A-Z</option>
                     </select>
                   </div>
 
@@ -1316,15 +2105,33 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
                     </button>
                   </div>
 
-                  {/* Toggle Tabela / Cards */}
+                  {/* Modos de Visualização: Áreas & Setores / Tabela Geral / Cards */}
                   <div className="flex items-center bg-slate-800 border border-slate-700/80 rounded-lg p-0.5">
                     <button
                       type="button"
+                      onClick={() => setViewMode('sectors')}
+                      className={`px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                        viewMode === 'sectors'
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                      title="Listar Áreas e Setores e o que está dentro delas com seus status"
+                    >
+                      <Building2 className="w-3.5 h-3.5" />
+                      <span>Áreas & Setores</span>
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setViewMode('table')}
-                      className={`p-1.5 rounded ${viewMode === 'table' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-                      title="Visualização em Tabela"
+                      className={`px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                        viewMode === 'table'
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                      title="Visualização em Tabela Geral"
                     >
                       <TableIcon className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Tabela Geral</span>
                     </button>
                     <button
                       type="button"
@@ -1370,9 +2177,349 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
                       onClick={() => setSelectedSectorId(null)}
                       className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 transition-colors shadow-sm"
                     >
-                      Ver Todos os Quadros da Planta ({nodes.filter(n => n.type !== 'text' && n.type !== 'note' && n.type !== 'group' && n.type !== 'sector').length})
+                      Ver Todos os Quadros da Planta ({effectiveNodes.filter(n => n.type !== 'text' && n.type !== 'note' && n.type !== 'group' && n.type !== 'sector').length})
                     </button>
                   )}
+                </div>
+              ) : viewMode === 'sectors' ? (
+                /* HIERARQUIA: ÁREAS / SETORES E O QUE ESTÁ DENTRO DELAS COM SEUS STATUS */
+                <div className="p-4 sm:p-6 space-y-5">
+                  {/* Top bar with summary & expand/collapse controls */}
+                  <div className="flex items-center justify-between gap-3 text-xs text-slate-400 border-b border-white/5 pb-2.5 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-cyan-400" />
+                      <span className="font-bold text-slate-200">
+                        {sectorGroups.length} {sectorGroups.length === 1 ? 'Área / Setor' : 'Áreas e Setores'}
+                      </span>
+                      <span>•</span>
+                      <span className="text-slate-400">
+                        {filteredAndSortedNodes.length} itens encontrados em {effectiveBoardName}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={expandAllSectors}
+                        className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium transition-colors"
+                      >
+                        Expandir Todos
+                      </button>
+                      <button
+                        type="button"
+                        onClick={collapseAllSectors}
+                        className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium transition-colors"
+                      >
+                        Recolher Todos
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Sectors Accordion / Cards List */}
+                  <div className="space-y-4">
+                    {sectorGroups.map((group) => {
+                      const isCollapsed = collapsedSectorIds.has(group.sectorId);
+                      return (
+                        <div
+                          key={group.sectorId}
+                          className="bg-slate-950/60 border border-slate-800/80 rounded-xl overflow-hidden transition-all shadow-md"
+                        >
+                          {/* Sector Header Banner */}
+                          <div
+                            onClick={() => toggleSectorCollapse(group.sectorId)}
+                            className="p-3.5 sm:p-4 bg-slate-900/80 hover:bg-slate-900 border-b border-white/5 flex flex-wrap items-center justify-between gap-3 cursor-pointer select-none transition-colors"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                                <Building2 className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h4 className="text-sm font-bold text-white">
+                                    {group.sectorName}
+                                  </h4>
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-800 text-slate-300 border border-white/10">
+                                    {group.sectorCode}
+                                  </span>
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+                                    {group.stats.total} {group.stats.total === 1 ? 'quadro' : 'quadros'}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-1 flex-wrap">
+                                  <span>Progresso: <b className="text-slate-200">{group.stats.averageProgress}%</b></span>
+                                  <span>•</span>
+                                  <span>No Prazo: <b className={group.stats.onTimeRate >= 80 ? 'text-emerald-400' : 'text-amber-400'}>{group.stats.onTimeRate}%</b></span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Sector status summary pills */}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {group.stats.completed > 0 && (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                                  <CheckCircle2 className="w-3 h-3" />
+                                  {group.stats.completed} Concluído{group.stats.completed > 1 ? 's' : ''}
+                                </span>
+                              )}
+                              {group.stats.inProgress > 0 && (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/15 text-blue-300 border border-blue-500/30 flex items-center gap-1">
+                                  <Activity className="w-3 h-3" />
+                                  {group.stats.inProgress} Em Andamento
+                                </span>
+                              )}
+                              {group.stats.warning > 0 && (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                                  <AlertTriangle className="w-3 h-3" />
+                                  {group.stats.warning} Alerta
+                                </span>
+                              )}
+                              {group.stats.delayed > 0 && (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 flex items-center gap-1 animate-pulse">
+                                  <AlertCircle className="w-3 h-3" />
+                                  {group.stats.delayed} Atrasado{group.stats.delayed > 1 ? 's' : ''}
+                                </span>
+                              )}
+                              {group.stats.pending > 0 && (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400 border border-white/5">
+                                  {group.stats.pending} Fila
+                                </span>
+                              )}
+
+                              <div className="p-1 rounded text-slate-400 hover:text-white transition-colors ml-1">
+                                {isCollapsed ? (
+                                  <ChevronDown className="w-4 h-4" />
+                                ) : (
+                                  <ChevronUp className="w-4 h-4" />
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Sector Progress Bar */}
+                          <div className="w-full bg-slate-900 h-1">
+                            <div
+                              className="h-full bg-gradient-to-r from-cyan-500 to-emerald-500 transition-all duration-500"
+                              style={{ width: `${group.stats.averageProgress}%` }}
+                            />
+                          </div>
+
+                          {/* Items inside this Sector */}
+                          {!isCollapsed && (
+                            <div className="divide-y divide-white/5">
+                              {group.items.length === 0 ? (
+                                <div className="p-6 text-center text-xs text-slate-500">
+                                  Nenhum quadro operacional alocado nesta área no momento.
+                                </div>
+                              ) : (
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-left border-collapse">
+                                    <thead className="bg-slate-900/60 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-white/5">
+                                      <tr>
+                                        <th className="px-4 py-2.5">Nome</th>
+                                        <th className="px-3 py-2.5">Ped. Venda</th>
+                                        <th className="px-3 py-2.5">Status Operacional</th>
+                                        <th className="px-3 py-2.5">Início</th>
+                                        <th className="px-3 py-2.5">Prazo Final</th>
+                                        <th className="px-3 py-2.5">Diagnóstico</th>
+                                        <th className="px-3 py-2.5">Avanço</th>
+                                        <th className="px-3 py-2.5">Responsável</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/5 text-xs">
+                                      {group.items.map((item) => {
+                                        const { node, progress, deadlineInfo, isBottleneck, isCompleted, isDelayed, isWarning, isInProgress } = item;
+                                        return (
+                                          <tr
+                                            key={node.id}
+                                            className={`transition-colors group border-b border-white/5 ${
+                                              isDelayed
+                                                ? 'bg-rose-950/40 hover:bg-rose-900/50 border-l-4 border-l-rose-500'
+                                                : isWarning
+                                                  ? 'bg-amber-950/35 hover:bg-amber-900/45 border-l-4 border-l-amber-500'
+                                                  : isCompleted
+                                                    ? 'bg-emerald-950/30 hover:bg-emerald-900/40 border-l-4 border-l-emerald-500'
+                                                    : isInProgress
+                                                      ? 'bg-blue-950/30 hover:bg-blue-900/40 border-l-4 border-l-blue-500'
+                                                      : item.interruptionInfo.isInterrupted || isBottleneck
+                                                        ? 'bg-purple-950/35 hover:bg-purple-900/45 border-l-4 border-l-purple-500'
+                                                        : 'bg-slate-900/30 hover:bg-slate-800/50 border-l-4 border-l-transparent'
+                                            }`}
+                                          >
+                                            <td className="px-4 py-3">
+                                              <div className="flex items-center gap-2">
+                                                <div className="min-w-0">
+                                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <span className="font-bold text-slate-100 group-hover:text-cyan-300 transition-colors">
+                                                      {item.quadroName || node.name}
+                                                    </span>
+                                                    <span className="px-1.5 py-0.2 rounded text-[9px] font-mono uppercase bg-slate-800 text-slate-400 border border-white/5">
+                                                      {node.type}
+                                                    </span>
+                                                    {selectedBoardId === 'all' && (
+                                                      <span className="px-1.5 py-0.2 rounded text-[9px] font-mono text-cyan-300 bg-cyan-950/60 border border-cyan-800/40">
+                                                        {item.boardName}
+                                                      </span>
+                                                    )}
+                                                    {isBottleneck && (
+                                                      <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                                        Gargalo
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                  {node.data?.description && (
+                                                    <p className="text-[11px] text-slate-500 truncate max-w-xs mt-0.5">
+                                                      {node.data.description}
+                                                    </p>
+                                                  )}
+
+                                                  {/* Layout Detalhado sobre a Ligação / Interrupção */}
+                                                  {item.interruptionInfo.isInterrupted && (
+                                                    <div className="mt-2 p-2 rounded-lg bg-rose-950/70 border border-rose-500/40 text-[11px] space-y-1.5 shadow-sm max-w-md">
+                                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                                        <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 font-bold uppercase text-[9px] tracking-wide">
+                                                          {item.node.type === 'interrupted_flow' ? '🔴 Ligação Bloqueada' : '⚠️ Trava de Linha'}
+                                                        </span>
+                                                        {item.interruptionInfo.connectionSummary && (
+                                                          <span className="text-rose-200 font-medium text-[10px] flex items-center gap-1">
+                                                            <Workflow className="w-3 h-3 text-rose-400 shrink-0" />
+                                                            {item.interruptionInfo.connectionSummary}
+                                                          </span>
+                                                        )}
+                                                      </div>
+                                                      {item.interruptionInfo.incidentDescription && (
+                                                        <div className="text-slate-200 bg-black/30 p-1.5 rounded border border-white/5 font-mono text-[10px] leading-relaxed">
+                                                          <span className="text-rose-400 font-bold">Motivo: </span>
+                                                          {item.interruptionInfo.incidentDescription}
+                                                        </div>
+                                                      )}
+                                                      <div className="flex items-center gap-1.5 flex-wrap text-[10px] text-slate-300 font-mono">
+                                                        {item.interruptionInfo.incidentResponsible && (
+                                                          <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-white/5 text-slate-300 flex items-center gap-1">
+                                                            <User className="w-2.5 h-2.5 text-blue-400" />
+                                                            Resp: <strong className="text-white">{item.interruptionInfo.incidentResponsible}</strong>
+                                                          </span>
+                                                        )}
+                                                        {item.interruptionInfo.incidentDate && item.interruptionInfo.incidentDate !== '---' && (
+                                                          <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-white/5 text-amber-300 flex items-center gap-1">
+                                                            <Clock className="w-2.5 h-2.5 text-amber-400" />
+                                                            Ocorrido: <strong>{item.interruptionInfo.incidentDate}</strong>
+                                                          </span>
+                                                        )}
+                                                        {item.interruptionInfo.incidentResolutionDate && item.interruptionInfo.incidentResolutionDate !== '---' && (
+                                                          <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-white/5 text-emerald-300 flex items-center gap-1">
+                                                            <Calendar className="w-2.5 h-2.5 text-emerald-400" />
+                                                            Previsão: <strong>{item.interruptionInfo.incidentResolutionDate}</strong>
+                                                          </span>
+                                                        )}
+                                                      </div>
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            </td>
+
+                                            <td className="px-3 py-3">
+                                              <span className="font-mono text-xs font-bold text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-800/40">
+                                                {item.salesOrder}
+                                              </span>
+                                            </td>
+
+                                            <td className="px-3 py-3">
+                                              {isCompleted ? (
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                                                  <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                                                  Concluído
+                                                </span>
+                                              ) : isDelayed ? (
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30 animate-pulse">
+                                                  <AlertCircle className="w-3 h-3 text-rose-400" />
+                                                  Atrasado
+                                                </span>
+                                              ) : isWarning ? (
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                                  <AlertTriangle className="w-3 h-3 text-amber-400" />
+                                                  Em Alerta
+                                                </span>
+                                              ) : isInProgress ? (
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping" />
+                                                  Em Andamento
+                                                </span>
+                                              ) : (
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-800 text-slate-300 border border-white/5">
+                                                  <Clock className="w-3 h-3 text-slate-400" />
+                                                  {node.status || 'Pendente'}
+                                                </span>
+                                              )}
+                                            </td>
+
+                                            <td className="px-3 py-3 font-mono text-[11px] text-slate-300">
+                                              {item.startFormatted}
+                                            </td>
+
+                                            <td className="px-3 py-3 font-mono text-[11px]">
+                                              <span className={isDelayed ? 'text-rose-400 font-bold' : isWarning ? 'text-amber-400 font-bold' : 'text-slate-300'}>
+                                                {item.endFormatted}
+                                              </span>
+                                            </td>
+
+                                            <td className="px-3 py-3">
+                                              {isCompleted ? (
+                                                <span className="text-emerald-400 font-semibold text-[11px]">No prazo</span>
+                                              ) : isDelayed ? (
+                                                <span className="text-rose-400 font-bold text-[11px]">
+                                                  {deadlineInfo.daysRemaining !== null ? `${Math.abs(deadlineInfo.daysRemaining)}d de atraso` : 'Atrasado'}
+                                                </span>
+                                              ) : isWarning ? (
+                                                <span className="text-amber-400 font-semibold text-[11px]">
+                                                  {deadlineInfo.daysRemaining === 0 ? 'Vence hoje' : `Restam ${deadlineInfo.daysRemaining}d`}
+                                                </span>
+                                              ) : deadlineInfo.daysRemaining !== null ? (
+                                                <span className="text-sky-400 text-[11px]">
+                                                  Restam {deadlineInfo.daysRemaining}d
+                                                </span>
+                                              ) : (
+                                                <span className="text-slate-500 text-[11px]">Sem prazo</span>
+                                              )}
+                                            </td>
+
+                                            <td className="px-3 py-3">
+                                              <div className="flex items-center gap-2">
+                                                <div className="w-14 bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                                  <div
+                                                    className={`h-full ${
+                                                      isCompleted
+                                                        ? 'bg-emerald-400'
+                                                        : isDelayed
+                                                          ? 'bg-rose-500'
+                                                          : isWarning
+                                                            ? 'bg-amber-400'
+                                                            : 'bg-blue-400'
+                                                    }`}
+                                                    style={{ width: `${progress}%` }}
+                                                  />
+                                                </div>
+                                                <span className="font-mono text-[11px] font-bold text-slate-200">
+                                                  {progress}%
+                                                </span>
+                                              </div>
+                                            </td>
+
+                                            <td className="px-3 py-3 text-[11px] text-slate-300">
+                                              {node.data?.responsible || node.data?.supervisorName || node.data?.operator || node.data?.machineName || 'Equipe'}
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               ) : viewMode === 'table' ? (
                 /* TABELA DE QUADROS (SIMPLIFICADA OU DETALHADA) */
@@ -1381,7 +2528,7 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
                     <thead className="sticky top-0 bg-slate-900 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-white/10 z-10">
                       {detailLevel === 'simplified' ? (
                         <tr>
-                          <th className="px-5 py-3">Quadro / Atividade</th>
+                          <th className="px-5 py-3">Nome</th>
                           <th className="px-3 py-3">Pedido de Venda</th>
                           <th className="px-4 py-3">Setor</th>
                           <th className="px-4 py-3">Status</th>
@@ -1391,7 +2538,7 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
                         </tr>
                       ) : (
                         <tr>
-                          <th className="px-5 py-3.5">Quadro / Atividade</th>
+                          <th className="px-5 py-3.5">Nome</th>
                           <th className="px-3 py-3.5">Pedido de Venda</th>
                           <th className="px-3 py-3.5">Setor</th>
                           <th className="px-3 py-3.5">Status Operacional</th>
@@ -1413,14 +2560,24 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
                           return (
                             <tr 
                               key={node.id} 
-                              className={`hover:bg-slate-800/40 transition-colors group ${
-                                isDelayed ? 'bg-rose-500/[0.03]' : isWarning ? 'bg-amber-500/[0.02]' : ''
+                              className={`transition-colors group border-b border-white/5 ${
+                                isDelayed
+                                  ? 'bg-rose-950/40 hover:bg-rose-900/50 border-l-4 border-l-rose-500'
+                                  : isWarning
+                                    ? 'bg-amber-950/35 hover:bg-amber-900/45 border-l-4 border-l-amber-500'
+                                    : isCompleted
+                                      ? 'bg-emerald-950/30 hover:bg-emerald-900/40 border-l-4 border-l-emerald-500'
+                                      : item.isInProgress
+                                        ? 'bg-blue-950/30 hover:bg-blue-900/40 border-l-4 border-l-blue-500'
+                                        : item.interruptionInfo.isInterrupted || isBottleneck
+                                          ? 'bg-purple-950/35 hover:bg-purple-900/45 border-l-4 border-l-purple-500'
+                                          : 'bg-slate-900/30 hover:bg-slate-800/50 border-l-4 border-l-transparent'
                               }`}
                             >
                               <td className="px-5 py-3">
                                 <div className="flex items-center gap-2">
                                   <span className="font-bold text-slate-100 group-hover:text-emerald-300 transition-colors">
-                                    {node.name}
+                                    {item.quadroName || node.name}
                                   </span>
                                   {isBottleneck && (
                                     <span className="px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[9px] font-mono uppercase">
@@ -1495,15 +2652,25 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
                         return (
                           <tr 
                             key={node.id} 
-                            className={`hover:bg-slate-800/40 transition-colors group ${
-                              isDelayed ? 'bg-rose-500/[0.03]' : isWarning ? 'bg-amber-500/[0.02]' : ''
+                            className={`transition-colors group border-b border-white/5 ${
+                              isDelayed
+                                ? 'bg-rose-950/40 hover:bg-rose-900/50 border-l-4 border-l-rose-500'
+                                : isWarning
+                                  ? 'bg-amber-950/35 hover:bg-amber-900/45 border-l-4 border-l-amber-500'
+                                  : isCompleted
+                                    ? 'bg-emerald-950/30 hover:bg-emerald-900/40 border-l-4 border-l-emerald-500'
+                                    : item.isInProgress
+                                      ? 'bg-blue-950/30 hover:bg-blue-900/40 border-l-4 border-l-blue-500'
+                                      : item.interruptionInfo.isInterrupted || isBottleneck
+                                        ? 'bg-purple-950/35 hover:bg-purple-900/45 border-l-4 border-l-purple-500'
+                                        : 'bg-slate-900/30 hover:bg-slate-800/50 border-l-4 border-l-transparent'
                             }`}
                           >
                             {/* Nome e tipo do quadro */}
                             <td className="px-5 py-3.5">
                               <div className="flex flex-col">
                                 <span className="font-bold text-slate-100 group-hover:text-emerald-300 transition-colors flex items-center gap-1.5">
-                                  {node.name}
+                                  {item.quadroName || node.name}
                                   {isBottleneck && (
                                     <span className="px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[9px] font-mono uppercase">
                                       Gargalo
@@ -1521,6 +2688,49 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
                                     <span>OP:{node.data.opNumber}</span>
                                   )}
                                 </div>
+
+                                {/* Layout Detalhado sobre a Ligação / Interrupção */}
+                                {item.interruptionInfo.isInterrupted && (
+                                  <div className="mt-2 p-2 rounded-lg bg-rose-950/70 border border-rose-500/40 text-[11px] space-y-1.5 shadow-sm max-w-md">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 font-bold uppercase text-[9px] tracking-wide">
+                                        {item.node.type === 'interrupted_flow' ? '🔴 Ligação Bloqueada' : '⚠️ Trava de Linha'}
+                                      </span>
+                                      {item.interruptionInfo.connectionSummary && (
+                                        <span className="text-rose-200 font-medium text-[10px] flex items-center gap-1">
+                                          <Workflow className="w-3 h-3 text-rose-400 shrink-0" />
+                                          {item.interruptionInfo.connectionSummary}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {item.interruptionInfo.incidentDescription && (
+                                      <div className="text-slate-200 bg-black/30 p-1.5 rounded border border-white/5 font-mono text-[10px] leading-relaxed">
+                                        <span className="text-rose-400 font-bold">Motivo: </span>
+                                        {item.interruptionInfo.incidentDescription}
+                                      </div>
+                                    )}
+                                    <div className="flex items-center gap-1.5 flex-wrap text-[10px] text-slate-300 font-mono">
+                                      {item.interruptionInfo.incidentResponsible && (
+                                        <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-white/5 text-slate-300 flex items-center gap-1">
+                                          <User className="w-2.5 h-2.5 text-blue-400" />
+                                          Resp: <strong className="text-white">{item.interruptionInfo.incidentResponsible}</strong>
+                                        </span>
+                                      )}
+                                      {item.interruptionInfo.incidentDate && item.interruptionInfo.incidentDate !== '---' && (
+                                        <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-white/5 text-amber-300 flex items-center gap-1">
+                                          <Clock className="w-2.5 h-2.5 text-amber-400" />
+                                          Ocorrido: <strong>{item.interruptionInfo.incidentDate}</strong>
+                                        </span>
+                                      )}
+                                      {item.interruptionInfo.incidentResolutionDate && item.interruptionInfo.incidentResolutionDate !== '---' && (
+                                        <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-white/5 text-emerald-300 flex items-center gap-1">
+                                          <Calendar className="w-2.5 h-2.5 text-emerald-400" />
+                                          Previsão: <strong>{item.interruptionInfo.incidentResolutionDate}</strong>
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </td>
 
@@ -1699,12 +2909,16 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
                         key={node.id}
                         className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between ${
                           isDelayed 
-                            ? 'bg-rose-500/5 border-rose-500/30' 
+                            ? 'bg-rose-950/40 border-rose-500/40 hover:bg-rose-900/50' 
                             : isWarning 
-                              ? 'bg-amber-500/5 border-amber-500/30' 
+                              ? 'bg-amber-950/35 border-amber-500/40 hover:bg-amber-900/45' 
                               : isCompleted 
-                                ? 'bg-emerald-500/5 border-emerald-500/20' 
-                                : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
+                                ? 'bg-emerald-950/30 border-emerald-500/30 hover:bg-emerald-900/40' 
+                                : item.isInProgress
+                                  ? 'bg-blue-950/30 border-blue-500/30 hover:bg-blue-900/40'
+                                  : item.interruptionInfo.isInterrupted || isBottleneck
+                                    ? 'bg-purple-950/35 border-purple-500/40 hover:bg-purple-900/45'
+                                    : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
                         }`}
                       >
                         <div>
@@ -1720,7 +2934,7 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
                                 )}
                               </div>
                               <h5 className="font-bold text-sm text-slate-100 mt-1 leading-snug">
-                                {node.name}
+                                {item.quadroName || node.name}
                               </h5>
                             </div>
 
@@ -1824,6 +3038,49 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
                                   {node.data.priority}
                                 </span>
                               )}
+                            </div>
+                          )}
+
+                          {/* Layout Detalhado sobre a Ligação / Interrupção no Card */}
+                          {item.interruptionInfo.isInterrupted && (
+                            <div className="mb-2.5 p-2 rounded-lg bg-rose-950/70 border border-rose-500/40 text-[11px] space-y-1.5 shadow-sm">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 font-bold uppercase text-[9px] tracking-wide">
+                                  {item.node.type === 'interrupted_flow' ? '🔴 Ligação Bloqueada' : '⚠️ Trava de Linha'}
+                                </span>
+                                {item.interruptionInfo.connectionSummary && (
+                                  <span className="text-rose-200 font-medium text-[10px] flex items-center gap-1">
+                                    <Workflow className="w-3 h-3 text-rose-400 shrink-0" />
+                                    {item.interruptionInfo.connectionSummary}
+                                  </span>
+                                )}
+                              </div>
+                              {item.interruptionInfo.incidentDescription && (
+                                <div className="text-slate-200 bg-black/30 p-1.5 rounded border border-white/5 font-mono text-[10px] leading-relaxed">
+                                  <span className="text-rose-400 font-bold">Motivo: </span>
+                                  {item.interruptionInfo.incidentDescription}
+                                </div>
+                              )}
+                              <div className="flex items-center gap-1.5 flex-wrap text-[10px] text-slate-300 font-mono">
+                                {item.interruptionInfo.incidentResponsible && (
+                                  <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-white/5 text-slate-300 flex items-center gap-1">
+                                    <User className="w-2.5 h-2.5 text-blue-400" />
+                                    Resp: <strong className="text-white">{item.interruptionInfo.incidentResponsible}</strong>
+                                  </span>
+                                )}
+                                {item.interruptionInfo.incidentDate && item.interruptionInfo.incidentDate !== '---' && (
+                                  <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-white/5 text-amber-300 flex items-center gap-1">
+                                    <Clock className="w-2.5 h-2.5 text-amber-400" />
+                                    Ocorrido: <strong>{item.interruptionInfo.incidentDate}</strong>
+                                  </span>
+                                )}
+                                {item.interruptionInfo.incidentResolutionDate && item.interruptionInfo.incidentResolutionDate !== '---' && (
+                                  <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-white/5 text-emerald-300 flex items-center gap-1">
+                                    <Calendar className="w-2.5 h-2.5 text-emerald-400" />
+                                    Previsão: <strong>{item.interruptionInfo.incidentResolutionDate}</strong>
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           )}
                         </div>

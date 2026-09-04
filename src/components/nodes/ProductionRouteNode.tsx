@@ -12,14 +12,12 @@ import {
   Layers, 
   ArrowRight,
   PlayCircle,
-  Timer,
   Edit2,
   Check,
   X
 } from 'lucide-react';
 import { CanvasNode, ProductionRouteStep } from '../../types/canvas';
 import { NodeTimeFrame } from '../common/NodeTimeFrame';
-import { NodeProgressBar } from '../common/NodeProgressBar';
 
 interface ProductionRouteNodeProps {
   node: CanvasNode;
@@ -51,7 +49,6 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
   const [newStepDeadline, setNewStepDeadline] = useState(
     node.data.dueDate || new Date(Date.now() + 5 * 86400000).toISOString().split('T')[0]
   );
-  const [newStepHours, setNewStepHours] = useState(8);
 
   const routeCode = node.data.routeCode || `ROT-${node.id.slice(-4).toUpperCase()}`;
   const productTarget = node.data.productTarget || 'Produto / Peça Industrial';
@@ -61,8 +58,8 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
     ? node.data.steps
     : [
         {
-          id: 'step-10',
-          sequence: 10,
+          id: 'step-1',
+          sequence: 1,
           name: 'Corte e Preparação da Matéria Prima',
           machineOrWorkcenter: 'Serra Fita / Prensas',
           operator: 'Carlos (RE-104)',
@@ -72,8 +69,8 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
           status: 'Concluído',
         },
         {
-          id: 'step-20',
-          sequence: 20,
+          id: 'step-2',
+          sequence: 2,
           name: 'Usinagem CNC e Torneamento',
           machineOrWorkcenter: 'Torno CNC Romi GL-240',
           operator: 'Marcos (RE-112)',
@@ -83,8 +80,8 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
           status: 'Em Andamento',
         },
         {
-          id: 'step-30',
-          sequence: 30,
+          id: 'step-3',
+          sequence: 3,
           name: 'Tratamento Térmico e Têmpera',
           machineOrWorkcenter: 'Forno de Indução Industrial',
           operator: 'Roberto (RE-108)',
@@ -94,8 +91,8 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
           status: 'Pendente',
         },
         {
-          id: 'step-40',
-          sequence: 40,
+          id: 'step-4',
+          sequence: 4,
           name: 'Montagem Final e Calibração',
           machineOrWorkcenter: 'Bancada de Montagem 02',
           operator: 'Equipe de Montagem',
@@ -105,8 +102,8 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
           status: 'Pendente',
         },
         {
-          id: 'step-50',
-          sequence: 50,
+          id: 'step-5',
+          sequence: 5,
           name: 'Controle de Qualidade e CQ Final',
           machineOrWorkcenter: 'Laboratório Metrológico',
           operator: 'Inspetor de Qualidade',
@@ -139,7 +136,6 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
     onUpdateData(node.id, {
       steps: newSteps,
       overallRouteProgress: calculatedProgress,
-      progressPercent: calculatedProgress,
     });
   };
 
@@ -188,8 +184,7 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
   const handleAddNewStep = () => {
     if (!newStepName.trim()) return;
 
-    const lastSeq = steps.length > 0 ? Math.max(...steps.map((s) => s.sequence)) : 0;
-    const nextSeq = lastSeq + 10;
+    const nextSeq = steps.length + 1;
 
     const newStepItem: ProductionRouteStep = {
       id: `step-${Date.now()}`,
@@ -199,7 +194,6 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
       operator: newStepOperator.trim() || 'Operador Responsável',
       startDate: newStepStartDate,
       deadline: newStepDeadline,
-      estimatedHours: Number(newStepHours) || 8,
       status: 'Pendente',
     };
 
@@ -245,8 +239,6 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
     return new Date(s.deadline + 'T00:00:00') < new Date();
   }).length;
 
-  const totalEstimatedHours = steps.reduce((acc, curr) => acc + (curr.estimatedHours || 0), 0);
-
   return (
     <div className="flex flex-col justify-between p-4 w-full h-full bg-[#0D1221]/95 rounded-xl border border-cyan-500/35 shadow-2xl backdrop-blur-md text-slate-100 overflow-hidden select-none">
       <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar">
@@ -271,8 +263,8 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
 
           <div className="flex items-center gap-1">
             <span className="px-2 py-0.5 bg-slate-800/80 border border-slate-700 text-slate-300 font-mono text-[10px] rounded flex items-center gap-1">
-              <Timer className="w-3 h-3 text-cyan-400" />
-              {totalEstimatedHours}h totais
+              <Layers className="w-3 h-3 text-cyan-400" />
+              {steps.length} {steps.length === 1 ? 'etapa' : 'etapas'}
             </span>
           </div>
         </div>
@@ -358,9 +350,6 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
           </div>
         </div>
 
-        {/* Content Progress Bar */}
-        <NodeProgressBar node={node} onUpdateData={onUpdateData} className="mb-3" />
-
         {/* Operations & Steps Sequencing Header */}
         <div className="flex items-center justify-between pb-1 mb-2 border-b border-white/5 text-xs">
           <span className="font-bold text-[11px] text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
@@ -382,7 +371,7 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
           <div className="mb-3 p-2.5 bg-slate-950/90 border border-cyan-500/40 rounded-lg space-y-2 animate-in fade-in zoom-in-95 duration-150">
             <div className="text-[10px] font-bold text-cyan-300 uppercase flex items-center justify-between">
               <span>Nova Operação do Roteiro</span>
-              <span className="text-slate-500 font-mono">OP-{steps.length > 0 ? Math.max(...steps.map(s => s.sequence)) + 10 : 10}</span>
+              <span className="text-cyan-300 font-mono text-[10px] font-bold bg-slate-800 px-2 py-0.5 rounded border border-white/10">{steps.length + 1}</span>
             </div>
 
             <input
@@ -410,7 +399,7 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-1.5 text-[10px]">
+            <div className="grid grid-cols-2 gap-2 text-[10px]">
               <div>
                 <label className="text-slate-400 block mb-0.5">Data Início</label>
                 <input
@@ -427,16 +416,6 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
                   value={newStepDeadline}
                   onChange={(e) => setNewStepDeadline(e.target.value)}
                   className="w-full bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-[10px] text-slate-200 focus:outline-none focus:border-cyan-400"
-                />
-              </div>
-              <div>
-                <label className="text-slate-400 block mb-0.5">Horas Est.</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={newStepHours}
-                  onChange={(e) => setNewStepHours(Number(e.target.value))}
-                  className="w-full bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-[10px] text-slate-200 focus:outline-none focus:border-cyan-400 font-mono"
                 />
               </div>
             </div>
@@ -462,7 +441,7 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
 
         {/* Steps List */}
         <div className="space-y-2">
-          {steps.map((step) => {
+          {steps.map((step, index) => {
             const deadlineInfo = getStepDeadlineInfo(step);
             const isEditingThisStep = editingStepId === step.id && editStepData !== null;
 
@@ -487,15 +466,6 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
                   >
                     <div className="flex items-center justify-between text-[10px] font-bold text-cyan-300">
                       <span>EDITAR ETAPA / OPERAÇÃO</span>
-                      <div className="flex items-center gap-1">
-                        <span className="text-slate-400">OP-</span>
-                        <input
-                          type="number"
-                          value={editStepData.sequence}
-                          onChange={(e) => setEditStepData({ ...editStepData, sequence: Number(e.target.value) })}
-                          className="w-14 bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-xs text-white font-mono"
-                        />
-                      </div>
                     </div>
 
                     <div className="space-y-1">
@@ -532,7 +502,7 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-1.5 text-[10px]">
+                    <div className="grid grid-cols-2 gap-2 text-[10px]">
                       <div>
                         <label className="text-slate-400 block mb-0.5">Data Início</label>
                         <input
@@ -549,15 +519,6 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
                           value={editStepData.deadline || ''}
                           onChange={(e) => setEditStepData({ ...editStepData, deadline: e.target.value })}
                           className="w-full bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-[10px] text-slate-200"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-slate-400 block mb-0.5">Horas Est.</label>
-                        <input
-                          type="number"
-                          value={editStepData.estimatedHours || 0}
-                          onChange={(e) => setEditStepData({ ...editStepData, estimatedHours: Number(e.target.value) })}
-                          className="w-full bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-[10px] text-slate-200 font-mono"
                         />
                       </div>
                     </div>
@@ -606,8 +567,8 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
                         className="flex items-center gap-1.5 flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity group/stephead"
                         title="Clique para editar este item / operação"
                       >
-                        <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 bg-slate-800 text-cyan-300 rounded border border-white/5 shrink-0 group-hover/stephead:border-cyan-500">
-                          OP-{step.sequence}
+                        <span className="font-mono text-[10px] font-bold min-w-[22px] text-center px-1.5 py-0.5 bg-slate-800 text-cyan-300 rounded border border-white/10 shrink-0 group-hover/stephead:border-cyan-500">
+                          {index + 1}
                         </span>
                         <span className={`text-xs font-semibold truncate ${
                           step.status === 'Concluído' ? 'line-through text-slate-400' : 'text-slate-200'
@@ -662,11 +623,6 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
                         <User className="w-3 h-3 text-slate-500 shrink-0" />
                         <span className="truncate max-w-[110px]">{step.operator || 'Operador'}</span>
                       </div>
-                      {step.estimatedHours !== undefined && (
-                        <span className="text-slate-400 font-bold">
-                          • {step.estimatedHours}h
-                        </span>
-                      )}
                     </div>
 
                     {/* Step Bottom Row: Dates & Deadlines */}
@@ -707,11 +663,7 @@ export const ProductionRouteNode: React.FC<ProductionRouteNodeProps> = ({
       </div>
 
       {/* Footer */}
-      <div className="pt-2.5 mt-2.5 border-t border-white/5 flex items-center justify-between text-[10px] font-mono text-slate-400 shrink-0">
-        <div className="flex items-center gap-1.5 text-slate-300">
-          <User className="w-3 h-3 text-cyan-400" />
-          <span>Responsável: <strong className="text-white">{node.assignee || 'Eng. de Processos'}</strong></span>
-        </div>
+      <div className="pt-2.5 mt-2.5 border-t border-white/5 flex items-center justify-end text-[10px] font-mono text-slate-400 shrink-0">
         <span className="text-cyan-400 font-semibold">{completedCount} de {steps.length} concluídas</span>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CanvasNode } from '../../types/canvas';
-import { FolderGit2, User } from 'lucide-react';
+import { FolderGit2 } from 'lucide-react';
 import { NodeProgressBar } from '../common/NodeProgressBar';
 
 interface ProjectNodeProps {
@@ -95,15 +95,6 @@ export const ProjectNode: React.FC<ProjectNodeProps> = ({ node, onUpdateData, on
             </div>
           ))}
         </div>
-      </div>
-
-      {/* Footer */}
-      <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[10px] font-mono text-slate-400">
-        <div className="flex items-center gap-1 text-slate-300">
-          <User className="w-3 h-3 text-cyan-400" />
-          <span>{node.assignee || 'João Mendes'}</span>
-        </div>
-        <span className="text-slate-500 text-[10px]">Engenharia</span>
       </div>
     </div>
   );

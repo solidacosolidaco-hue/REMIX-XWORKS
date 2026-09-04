@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   Clock,
   User,
-  Building2,
   Calendar,
   FileText,
   RefreshCw,
@@ -99,7 +98,6 @@ export const InterruptedFlowNode: React.FC<InterruptedFlowNodeProps> = ({
   const isResolved = node.data?.isResolved ?? false;
   const incidentDescription = node.data?.incidentDescription ?? '';
   const incidentDate = node.data?.incidentDate ?? '';
-  const incidentSector = node.data?.incidentSector ?? '';
   const incidentResponsible = node.data?.incidentResponsible ?? '';
   const incidentResolutionDate = node.data?.incidentResolutionDate ?? '';
 
@@ -244,7 +242,7 @@ export const InterruptedFlowNode: React.FC<InterruptedFlowNodeProps> = ({
             />
           </div>
 
-          {/* Grid: Quando Aconteceu & Setor */}
+          {/* Grid: Quando Aconteceu & Previsão/Resolução */}
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-[10px] uppercase font-mono tracking-wider text-slate-400 flex items-center gap-1 mb-1">
@@ -266,37 +264,6 @@ export const InterruptedFlowNode: React.FC<InterruptedFlowNodeProps> = ({
 
             <div>
               <label className="text-[10px] uppercase font-mono tracking-wider text-slate-400 flex items-center gap-1 mb-1">
-                <Building2 className="w-3 h-3 text-cyan-400" />
-                <span>Setor:</span>
-              </label>
-              <input
-                type="text"
-                value={incidentSector}
-                onChange={(e) => handleFieldChange('incidentSector', e.target.value)}
-                placeholder="Ex: Usinagem"
-                className="w-full bg-slate-900/90 border border-white/10 rounded-lg px-2 py-1.5 text-slate-200 placeholder-slate-500 text-xs focus:border-rose-500/50 focus:outline-none"
-              />
-            </div>
-          </div>
-
-          {/* Grid: Responsável & Data de Resolução */}
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-[10px] uppercase font-mono tracking-wider text-slate-400 flex items-center gap-1 mb-1">
-                <User className="w-3 h-3 text-blue-400" />
-                <span>Responsável:</span>
-              </label>
-              <input
-                type="text"
-                value={incidentResponsible}
-                onChange={(e) => handleFieldChange('incidentResponsible', e.target.value)}
-                placeholder="Ex: Carlos (Líder)"
-                className="w-full bg-slate-900/90 border border-white/10 rounded-lg px-2 py-1.5 text-slate-200 placeholder-slate-500 text-xs focus:border-rose-500/50 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="text-[10px] uppercase font-mono tracking-wider text-slate-400 flex items-center gap-1 mb-1">
                 <Calendar className="w-3 h-3 text-emerald-400" />
                 <span>Previsão/Resolução:</span>
               </label>
@@ -312,6 +279,21 @@ export const InterruptedFlowNode: React.FC<InterruptedFlowNodeProps> = ({
                 className="w-full bg-slate-900/90 border border-white/10 rounded-lg px-2 py-1.5 text-slate-200 placeholder-slate-500 text-xs focus:border-rose-500/50 focus:outline-none cursor-pointer [color-scheme:dark]"
               />
             </div>
+          </div>
+
+          {/* Responsável */}
+          <div>
+            <label className="text-[10px] uppercase font-mono tracking-wider text-slate-400 flex items-center gap-1 mb-1">
+              <User className="w-3 h-3 text-blue-400" />
+              <span>Responsável:</span>
+            </label>
+            <input
+              type="text"
+              value={incidentResponsible}
+              onChange={(e) => handleFieldChange('incidentResponsible', e.target.value)}
+              placeholder="Ex: Carlos (Líder)"
+              className="w-full bg-slate-900/90 border border-white/10 rounded-lg px-2 py-1.5 text-slate-200 placeholder-slate-500 text-xs focus:border-rose-500/50 focus:outline-none"
+            />
           </div>
         </div>
       </div>

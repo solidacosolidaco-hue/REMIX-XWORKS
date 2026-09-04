@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, Clock, Layers, User } from 'lucide-react';
+import { Settings, Clock, Layers } from 'lucide-react';
 import { CanvasNode } from '../../types/canvas';
 import { NodeTimeFrame } from '../common/NodeTimeFrame';
 import { NodeProgressBar } from '../common/NodeProgressBar';
@@ -90,16 +90,7 @@ export const ProductionOrderNode: React.FC<ProductionOrderNodeProps> = ({ node, 
         <NodeTimeFrame node={node} onUpdateData={onUpdateData} className="mb-2" />
 
         {/* Progresso de Produção */}
-        <NodeProgressBar node={node} onUpdateData={onUpdateData} className="mb-2" />
-      </div>
-
-      {/* Footer */}
-      <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[10px] font-mono text-slate-400">
-        <div className="flex items-center gap-1 text-slate-300">
-          <User className="w-3 h-3 text-amber-400" />
-          <span>{node.assignee || 'Carlos Eduardo'}</span>
-        </div>
-        <span className="text-slate-500">Chão de Fábrica</span>
+        <NodeProgressBar node={node} onUpdateData={onUpdateData} />
       </div>
     </div>
   );

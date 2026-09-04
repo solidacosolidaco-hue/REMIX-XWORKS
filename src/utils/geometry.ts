@@ -1,4 +1,4 @@
-import { CanvasNode, ConnectionHandle, ConnectionLineStyle, Viewport } from '../types/canvas';
+import { CanvasNode, Connection, ConnectionHandle, ConnectionLineStyle, Viewport } from '../types/canvas';
 
 export function screenToCanvas(
   screenX: number | { x: number; y: number },
@@ -435,4 +435,71 @@ export function resolveNodeCollisions(
   }
 
   return { x: resX, y: resY };
+}
+
+export function getInterruptedConnectionIds(nodes: CanvasNode[], connections: Connection[]): { interruptedConns: Set<string>, interrupterMap: Map<string, string[]> } {
+  const nodeMap = new Map<string, CanvasNode>(nodes.map((n) => [n.id, n]));
+  const unresolvedInterruptedNodes = nodes.filter((n) => n.type === 'interrupted_flow' && !n.data?.isResolved);
+  if (unresolvedInterruptedNodes.length === 0) return { interruptedConns: new Set<string>(), interrupterMap: new Map<string, string[]>() };
+
+  const interruptedConns = new Set<string>();
+  const interrupterMap = new Map<string, string[]>();
+
+  const addInterrupt = (connId: string, interId: string) => {
+    interruptedConns.add(connId);
+    if (!interrupterMap.has(connId)) {
+      interrupterMap.set(connId, []);
+    }
+    const list = interrupterMap.get(connId)!;
+    if (!list.includes(interId)) {
+      list.push(interId);
+    }
+  };
+
+  for (const interNode of unresolvedInterruptedNodes) {
+    const interId = interNode.id;
+    const posX = interNode.x ?? 0;
+    const posY = interNode.y ?? 0;
+    const bw = interNode.width || 360;
+    const bh = interNode.height || 420;
+    const bx1 = posX - 10;
+    const by1 = posY - 10;
+    const bx2 = posX + bw + 10;
+    const by2 = posY + bh + 10;
+
+    for (const conn of connections) {
+      let isDirect = false;
+      if (conn.toConnectionId && conn.fromId === interId) {
+        addInterrupt(conn.toConnectionId, interId);
+        addInterrupt(conn.id, interId);
+        isDirect = true;
+      }
+      if (conn.fromId === interId || conn.toId === interId) {
+        addInterrupt(conn.id, interId);
+        isDirect = true;
+      }
+      if (!isDirect) {
+        const fromNode = nodeMap.get(conn.fromId);
+        const toNode = nodeMap.get(conn.toId);
+        if (fromNode && toNode) {
+          const autoH = getAutoHandles(fromNode, toNode);
+          const start = getHandlePosition(fromNode, conn.fromHandle || autoH.fromHandle);
+          const end = getHandlePosition(toNode, conn.toHandle || autoH.toHandle);
+          const { midPoint } = generatePath(start, end, conn.fromHandle || autoH.fromHandle, conn.toHandle || autoH.toHandle, conn.lineStyle || 'curved');
+
+          for (let i = 0; i <= 15; i++) {
+            const t = i / 15;
+            const px = (1 - t) * (1 - t) * (start.x ?? 0) + 2 * (1 - t) * t * (midPoint.x ?? 0) + t * t * (end.x ?? 0);
+            const py = (1 - t) * (1 - t) * (start.y ?? 0) + 2 * (1 - t) * t * (midPoint.y ?? 0) + t * t * (end.y ?? 0);
+
+            if (px >= bx1 && px <= bx2 && py >= by1 && py <= by2) {
+              addInterrupt(conn.id, interId);
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+  return { interruptedConns, interrupterMap };
 }

@@ -182,6 +182,7 @@ export function getNodeDeadlineInfo(
     node.data.prazoInicial ||
     node.data.dataInicio ||
     node.data.initialDate ||
+    node.data.incidentDate ||
     (node.createdAt && node.createdAt.includes('-') ? node.createdAt.slice(0, 10) : undefined);
 
   const rawDeadline =
@@ -195,6 +196,7 @@ export function getNodeDeadlineInfo(
     node.data.dataLimite ||
     node.data.dataEntrega ||
     node.data.prazo ||
+    node.data.incidentResolutionDate ||
     (node.type === 'deadline' ? (node.data as any).targetDate : undefined);
 
   const startObj = parseDateString(rawStartDate);

@@ -291,51 +291,51 @@ export const CONTROLE_PRODUCAO_NODES: CanvasNode[] = [
           "status": "Concluído",
           "deadline": "2026-09-04",
           "operator": "Marcos Silva (RE-204)",
-          "sequence": 10,
+          "sequence": 1,
           "startDate": "2026-09-02",
           "estimatedHours": 4,
           "machineOrWorkcenter": "Serra Fita Automática S-320"
         },
         {
-          "id": "step-20",
+          "id": "step-2",
           "name": "Torneamento CNC e Desbaste Pesado",
           "status": "Em Andamento",
           "deadline": "2026-09-09",
           "operator": "Carlos Eduardo (RE-118)",
-          "sequence": 20,
+          "sequence": 2,
           "startDate": "2026-09-05",
           "estimatedHours": 12,
           "machineOrWorkcenter": "Torno CNC Romi GL-240"
         },
         {
-          "id": "step-30",
+          "id": "step-3",
           "name": "Fresamento de Canais e Rasgos de Chaveta",
           "status": "Pendente",
           "deadline": "2026-09-14",
           "operator": "André Luiz (RE-305)",
-          "sequence": 30,
+          "sequence": 3,
           "startDate": "2026-09-10",
           "estimatedHours": 8,
           "machineOrWorkcenter": "Centro de Usinagem 4 Eixos Haas"
         },
         {
-          "id": "step-40",
+          "id": "step-4",
           "name": "Tratamento Térmico por Indução & Retífica",
           "status": "Pendente",
           "deadline": "2026-09-18",
           "operator": "Eng. Roberto (RE-102)",
-          "sequence": 40,
+          "sequence": 4,
           "startDate": "2026-09-15",
           "estimatedHours": 10,
           "machineOrWorkcenter": "Forno de Têmpera / Retífica Cilíndrica"
         },
         {
-          "id": "step-50",
+          "id": "step-5",
           "name": "Inspeção Dimensional & Controle de Qualidade (CQ)",
           "status": "Pendente",
           "deadline": "2026-09-22",
           "operator": "Inspetor Qualidade CQ",
-          "sequence": 50,
+          "sequence": 5,
           "startDate": "2026-09-19",
           "estimatedHours": 4,
           "machineOrWorkcenter": "Laboratório Metrológico 3D Tridimensional"
@@ -991,34 +991,6 @@ export const CONTROLE_PRODUCAO_NODES: CanvasNode[] = [
     "updatedAt": "03/09/2026"
   },
   {
-    "x": 5910,
-    "y": 2062,
-    "id": "node-interrupted_flow-1788485540723",
-    "data": {
-      "isResolved": true,
-      "currentValue": 82,
-      "incidentDate": "03/09/2026 22:32",
-      "orderProgress": 82,
-      "incidentSector": "Usinagem / Produção",
-      "progressPercent": 82,
-      "projectProgress": 82,
-      "incidentDescription": "Parada não planejada do processo por falha operacional.",
-      "incidentResponsible": "Líder de Turno",
-      "incidentResolutionDate": "Previsão: Hoje às 18:00"
-    },
-    "name": "Fluxo Interrompido",
-    "tags": [
-      "interrupted_flow"
-    ],
-    "type": "interrupted_flow",
-    "color": "rose",
-    "width": 360,
-    "height": 420,
-    "status": "A Fazer",
-    "createdAt": "01/09/2026",
-    "updatedAt": "01/09/2026"
-  },
-  {
     "x": -228,
     "y": -1098,
     "id": "node-budget-1788487132054",
@@ -1333,21 +1305,6 @@ export const CONTROLE_PRODUCAO_CONNECTIONS: Connection[] = [
     "relationType": "custom"
   },
   {
-    "id": "conn-1788474768322",
-    "toId": "node-customer-1788474199479",
-    "arrow": "end",
-    "color": "#38bdf8",
-    "label": "relacionado",
-    "fromId": "node-kanban-1788474398927-0-122",
-    "animated": true,
-    "autoSync": true,
-    "toHandle": "bottom-2",
-    "lineStyle": "curved",
-    "fromHandle": "bottom-2",
-    "dataExchange": {},
-    "relationType": "custom"
-  },
-  {
     "id": "conn-1788485266907",
     "toId": "node-kanban-1788474396735-0-138",
     "arrow": "end",
@@ -1361,20 +1318,6 @@ export const CONTROLE_PRODUCAO_CONNECTIONS: Connection[] = [
     "fromHandle": "right-2",
     "dataExchange": {},
     "relationType": "custom"
-  },
-  {
-    "id": "conn-1788486985371",
-    "toId": "node-kanban-1788474398927-0-122",
-    "arrow": "end",
-    "color": "#f43f5e",
-    "label": "Interrupção de Fluxo",
-    "fromId": "node-interrupted_flow-1788485540723",
-    "animated": true,
-    "toHandle": "top-2",
-    "lineStyle": "curved",
-    "fromHandle": "right-2",
-    "strokePattern": "dashed",
-    "toConnectionId": "conn-1788474768322"
   },
   {
     "id": "conn-1788487465858",

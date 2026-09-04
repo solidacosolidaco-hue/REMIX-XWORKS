@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CanvasNode, Connection, ConnectionHandle, ConnectionLineStyle } from '../../types/canvas';
-import { generatePath, getAutoHandles, getHandlePosition } from '../../utils/geometry';
+import { generatePath, getAutoHandles, getHandlePosition, getInterruptedConnectionIds } from '../../utils/geometry';
 import { getFeedPhrase, isConnectionLogicValid, calculateConnectionValue, getStrokeWidthFromValue } from '../../utils/flowIntelligence';
 import { getNodeDeadlineInfo } from '../../utils/nodeDeadline';
 import { X, ArrowRight, Zap, AlertCircle, Paperclip, ExternalLink } from 'lucide-react';
@@ -51,71 +51,9 @@ export const ConnectionRenderer: React.FC<ConnectionRendererProps> = ({
 
   // Compute set of all connection IDs that are interrupted (ONLY the specific line connected or intersected)
   const interruptedConnectionIds = React.useMemo(() => {
-    if (unresolvedInterruptedNodes.length === 0) return new Set<string>();
-
-    const interruptedConns = new Set<string>();
-
-    // Identify direct & spatial interruptions from unresolved interrupted_flow nodes
-    for (const interNode of unresolvedInterruptedNodes) {
-      const interId = interNode.id;
-      const posX = interNode.position?.x ?? interNode.x ?? 0;
-      const posY = interNode.position?.y ?? interNode.y ?? 0;
-      const bw = interNode.width || 360;
-      const bh = interNode.height || 420;
-      const bx1 = posX - 10;
-      const by1 = posY - 10;
-      const bx2 = posX + bw + 10;
-      const by2 = posY + bh + 10;
-
-      for (const conn of connections) {
-        let isDirect = false;
-
-        // Direct wire to a connection line (toConnectionId)
-        if (conn.toConnectionId && conn.fromId === interId) {
-          interruptedConns.add(conn.toConnectionId);
-          interruptedConns.add(conn.id);
-          isDirect = true;
-        }
-
-        // Direct connection FROM interrupted_flow to a node or another connection
-        if (conn.fromId === interId) {
-          interruptedConns.add(conn.id);
-          isDirect = true;
-        }
-
-        // Direct connection INTO interrupted_flow
-        if (conn.toId === interId) {
-          interruptedConns.add(conn.id);
-          isDirect = true;
-        }
-
-        if (!isDirect) {
-          // Spatial Overlap Check: card positioned directly on top of line
-          const fromNode = nodeMap.get(conn.fromId);
-          const toNode = nodeMap.get(conn.toId);
-          if (fromNode && toNode) {
-            const autoH = getAutoHandles(fromNode, toNode);
-            const start = getHandlePosition(fromNode, conn.fromHandle || autoH.fromHandle);
-            const end = getHandlePosition(toNode, conn.toHandle || autoH.toHandle);
-            const { midPoint } = generatePath(start, end, conn.fromHandle || autoH.fromHandle, conn.toHandle || autoH.toHandle, conn.lineStyle || 'curved');
-
-            for (let i = 0; i <= 15; i++) {
-              const t = i / 15;
-              const px = (1 - t) * (1 - t) * (start.x ?? 0) + 2 * (1 - t) * t * (midPoint.x ?? 0) + t * t * (end.x ?? 0);
-              const py = (1 - t) * (1 - t) * (start.y ?? 0) + 2 * (1 - t) * t * (midPoint.y ?? 0) + t * t * (end.y ?? 0);
-
-              if (px >= bx1 && px <= bx2 && py >= by1 && py <= by2) {
-                interruptedConns.add(conn.id);
-                break;
-              }
-            }
-          }
-        }
-      }
-    }
-
+    const { interruptedConns } = getInterruptedConnectionIds(nodes, connections);
     return interruptedConns;
-  }, [unresolvedInterruptedNodes, connections, nodeMap]);
+  }, [nodes, connections]);
 
   return (
     <svg

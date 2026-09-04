@@ -91,7 +91,23 @@ export function App() {
         if (Array.isArray(parsed) && parsed.length > 0) {
           // Check if parsed boards contain the new transcribed board
           const hasTranscribedBoard = parsed.some(b => b.nodes && b.nodes.some(n => n.id === 'node-cp-1'));
-          if (hasTranscribedBoard) return parsed as CanvasBoard[];
+          if (hasTranscribedBoard) {
+            parsed.forEach(b => {
+              if (b.nodes) {
+                b.nodes = b.nodes.filter((n: CanvasNode) => n.id !== 'node-interrupted_flow-1788485540723');
+              }
+              if (b.connections) {
+                b.connections = b.connections.filter(
+                  (c: Connection) =>
+                    c.id !== 'conn-1788474768322' &&
+                    c.id !== 'conn-1788486985371' &&
+                    c.fromId !== 'node-interrupted_flow-1788485540723' &&
+                    c.toId !== 'node-interrupted_flow-1788485540723'
+                );
+              }
+            });
+            return parsed as CanvasBoard[];
+          }
         }
       }
     } catch {}
@@ -111,12 +127,20 @@ export function App() {
   };
 
   // Core Canvas State
-  const [nodes, setNodes] = useState<CanvasNode[]>(
-    initialSavedBoards?.[0]?.nodes || initialIndustrialNodes
-  );
-  const [connections, setConnections] = useState<Connection[]>(
-    initialSavedBoards?.[0]?.connections || initialIndustrialConnections
-  );
+  const [nodes, setNodes] = useState<CanvasNode[]>(() => {
+    const rawNodes = initialSavedBoards?.[0]?.nodes || initialIndustrialNodes;
+    return rawNodes.filter((n) => n.id !== 'node-interrupted_flow-1788485540723');
+  });
+  const [connections, setConnections] = useState<Connection[]>(() => {
+    const rawConns = initialSavedBoards?.[0]?.connections || initialIndustrialConnections;
+    return rawConns.filter(
+      (c: Connection) =>
+        c.id !== 'conn-1788474768322' &&
+        c.id !== 'conn-1788486985371' &&
+        c.fromId !== 'node-interrupted_flow-1788485540723' &&
+        c.toId !== 'node-interrupted_flow-1788485540723'
+    );
+  });
   const [viewport, setViewport] = useState<Viewport>(
     initialSavedBoards?.[0]?.viewport || { x: 40, y: 20, scale: 0.6 }
   );
@@ -1660,7 +1684,6 @@ export function App() {
         defaultData = {
           incidentDescription: 'Parada não planejada do processo por falha operacional.',
           incidentDate: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-          incidentSector: 'Usinagem / Produção',
           incidentResponsible: 'Líder de Turno',
           incidentResolutionDate: 'Previsão: Hoje às 18:00',
           isResolved: false,
@@ -3025,6 +3048,9 @@ export function App() {
         sectorId={sectorReportTargetId}
         nodes={nodes}
         connections={connections}
+        boards={renderedBoards}
+        activeBoardId={activeBoardId}
+        onSelectBoard={(boardId) => handleSelectBoard(boardId)}
       />
 
 

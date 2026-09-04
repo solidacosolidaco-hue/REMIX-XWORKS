@@ -6,7 +6,7 @@ import {
   Plus, MapPin, Phone, Mail, Globe, CreditCard, Briefcase, Check, 
   AlertCircle, Database, Sparkles, ChevronDown, CheckCheck, RefreshCw, FileCheck,
   ShoppingCart, Receipt, Truck, Percent, Calculator, ArrowRightLeft, Package,
-  Eye, EyeOff
+  Eye, EyeOff, FolderGit2
 } from 'lucide-react';
 import { 
   getRegisteredCustomers, 
@@ -1854,124 +1854,126 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({
                 </div>
               </div>
 
-              {/* Divider */}
-              <div className="border-t border-slate-800/80 my-4" />
+              {/* Customização e Aparência do Quadro (Oculto para quadro de projeto) */}
+              {node.type !== 'project' && (
+                <>
+                  <div className="border-t border-slate-800/80 my-4" />
+                  <div className="p-4 bg-slate-950/40 rounded-xl border border-slate-800 space-y-4">
+                    <h4 className="font-bold text-xs uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-amber-400" /> Customização & Aparência Visual
+                    </h4>
 
-              {/* Customização e Aparência do Quadro */}
-              <div className="p-4 bg-slate-950/40 rounded-xl border border-slate-800 space-y-4">
-                <h4 className="font-bold text-xs uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-amber-400" /> Customização & Aparência Visual
-                </h4>
-
-                {/* Accent Theme Color Selector */}
-                <div className="space-y-2">
-                  <label className="block text-[11px] font-mono text-slate-400 uppercase tracking-wider">
-                    Cor do Tema de Destaque do Quadro
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { name: 'slate', bg: 'bg-slate-500', label: 'Cinza' },
-                      { name: 'blue', bg: 'bg-blue-500', label: 'Azul' },
-                      { name: 'emerald', bg: 'bg-emerald-500', label: 'Verde' },
-                      { name: 'amber', bg: 'bg-amber-500', label: 'Amarelo' },
-                      { name: 'rose', bg: 'bg-rose-500', label: 'Rosa' },
-                      { name: 'purple', bg: 'bg-purple-500', label: 'Roxo' },
-                      { name: 'cyan', bg: 'bg-cyan-500', label: 'Ciano' },
-                      { name: 'indigo', bg: 'bg-indigo-500', label: 'Índigo' },
-                      { name: 'orange', bg: 'bg-orange-500', label: 'Laranja' },
-                    ].map((c) => {
-                      const isActive = nodeColor === c.name;
-                      return (
-                        <button
-                          key={c.name}
-                          type="button"
-                          onClick={() => setNodeColor(c.name as NodeColor)}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
-                            isActive
-                              ? `bg-slate-900 border-slate-200 text-white shadow-md shadow-white/5`
-                              : 'bg-slate-950/40 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
-                          }`}
-                          title={c.label}
-                        >
-                          <span className={`w-3 h-3 rounded-full ${c.bg} shrink-0`} />
-                          <span>{c.label}</span>
-                          {isActive && <Check className="w-3.5 h-3.5 text-slate-100 ml-1 shrink-0" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Slider for Width & Height */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center text-[11px] font-mono">
-                      <span className="text-slate-400 uppercase">Largura do Quadro</span>
-                      <span className="text-white font-bold">{width}px</span>
+                    {/* Accent Theme Color Selector */}
+                    <div className="space-y-2">
+                      <label className="block text-[11px] font-mono text-slate-400 uppercase tracking-wider">
+                        Cor do Tema de Destaque do Quadro
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { name: 'slate', bg: 'bg-slate-500', label: 'Cinza' },
+                          { name: 'blue', bg: 'bg-blue-500', label: 'Azul' },
+                          { name: 'emerald', bg: 'bg-emerald-500', label: 'Verde' },
+                          { name: 'amber', bg: 'bg-amber-500', label: 'Amarelo' },
+                          { name: 'rose', bg: 'bg-rose-500', label: 'Rosa' },
+                          { name: 'purple', bg: 'bg-purple-500', label: 'Roxo' },
+                          { name: 'cyan', bg: 'bg-cyan-500', label: 'Ciano' },
+                          { name: 'indigo', bg: 'bg-indigo-500', label: 'Índigo' },
+                          { name: 'orange', bg: 'bg-orange-500', label: 'Laranja' },
+                        ].map((c) => {
+                          const isActive = nodeColor === c.name;
+                          return (
+                            <button
+                              key={c.name}
+                              type="button"
+                              onClick={() => setNodeColor(c.name as NodeColor)}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                                isActive
+                                  ? `bg-slate-900 border-slate-200 text-white shadow-md shadow-white/5`
+                                  : 'bg-slate-950/40 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                              }`}
+                              title={c.label}
+                            >
+                              <span className={`w-3 h-3 rounded-full ${c.bg} shrink-0`} />
+                              <span>{c.label}</span>
+                              {isActive && <Check className="w-3.5 h-3.5 text-slate-100 ml-1 shrink-0" />}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <input
-                      type="range"
-                      min="260"
-                      max="600"
-                      step="10"
-                      value={width}
-                      onChange={(e) => setWidth(Number(e.target.value))}
-                      className="w-full accent-blue-500 bg-slate-900 rounded-lg appearance-none h-1.5 cursor-pointer"
-                    />
-                  </div>
 
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center text-[11px] font-mono">
-                      <span className="text-slate-400 uppercase">Altura do Quadro</span>
-                      <span className="text-white font-bold">{height}px</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="180"
-                      max="600"
-                      step="10"
-                      value={height}
-                      onChange={(e) => setHeight(Number(e.target.value))}
-                      className="w-full accent-blue-500 bg-slate-900 rounded-lg appearance-none h-1.5 cursor-pointer"
-                    />
-                  </div>
-                </div>
+                    {/* Slider for Width & Height */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center text-[11px] font-mono">
+                          <span className="text-slate-400 uppercase">Largura do Quadro</span>
+                          <span className="text-white font-bold">{width}px</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="260"
+                          max="600"
+                          step="10"
+                          value={width}
+                          onChange={(e) => setWidth(Number(e.target.value))}
+                          className="w-full accent-blue-500 bg-slate-900 rounded-lg appearance-none h-1.5 cursor-pointer"
+                        />
+                      </div>
 
-                {/* Connection points count & Glow Toggle */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center text-[11px] font-mono">
-                      <span className="text-slate-400 uppercase">Pontos de Conexão (por lado)</span>
-                      <span className="text-white font-bold">{connectionPoints}</span>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center text-[11px] font-mono">
+                          <span className="text-slate-400 uppercase">Altura do Quadro</span>
+                          <span className="text-white font-bold">{height}px</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="180"
+                          max="600"
+                          step="10"
+                          value={height}
+                          onChange={(e) => setHeight(Number(e.target.value))}
+                          className="w-full accent-blue-500 bg-slate-900 rounded-lg appearance-none h-1.5 cursor-pointer"
+                        />
+                      </div>
                     </div>
-                    <input
-                      type="range"
-                      min="1"
-                      max="6"
-                      step="1"
-                      value={connectionPoints}
-                      onChange={(e) => setConnectionPoints(Number(e.target.value))}
-                      className="w-full accent-blue-500 bg-slate-900 rounded-lg appearance-none h-1.5 cursor-pointer"
-                    />
-                  </div>
 
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-slate-900/60 border border-slate-800">
-                    <div className="space-y-0.5">
-                      <span className="text-[11px] font-mono text-slate-400 uppercase block">Efeito Glow (Brilho Neon)</span>
-                      <span className="text-[10px] text-slate-500 block">Ativa brilho luminoso ao redor do quadro</span>
+                    {/* Connection points count & Glow Toggle */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center text-[11px] font-mono">
+                          <span className="text-slate-400 uppercase">Pontos de Conexão (por lado)</span>
+                          <span className="text-white font-bold">{connectionPoints}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="1"
+                          max="6"
+                          step="1"
+                          value={connectionPoints}
+                          onChange={(e) => setConnectionPoints(Number(e.target.value))}
+                          className="w-full accent-blue-500 bg-slate-900 rounded-lg appearance-none h-1.5 cursor-pointer"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+                        <div className="space-y-0.5">
+                          <span className="text-[11px] font-mono text-slate-400 uppercase block">Efeito Glow (Brilho Neon)</span>
+                          <span className="text-[10px] text-slate-500 block">Ativa brilho luminoso ao redor do quadro</span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={enableGlow}
+                            onChange={(e) => setEnableGlow(e.target.checked)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600 peer-checked:after:bg-white peer-checked:after:border-white"></div>
+                        </label>
+                      </div>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={enableGlow}
-                        onChange={(e) => setEnableGlow(e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600 peer-checked:after:bg-white peer-checked:after:border-white"></div>
-                    </label>
                   </div>
-                </div>
-              </div>
+                </>
+              )}
 
               {/* Kanban Column Customizer if type is Kanban */}
               {nodeType === 'kanban' && (
@@ -2246,6 +2248,60 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({
                     value={nodeData.dueDate || ''}
                     onChange={(e) => handleDataChange('dueDate', e.target.value)}
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-xs"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {node.type === 'project' && (
+            <div className="p-4 bg-cyan-950/30 rounded-xl border border-cyan-500/30 space-y-3">
+              <h4 className="font-bold text-xs uppercase tracking-wider text-cyan-300 flex items-center gap-1.5">
+                <FolderGit2 className="w-4 h-4" /> Parâmetros do Projeto de Engenharia
+              </h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Código do Projeto</label>
+                  <input
+                    type="text"
+                    value={nodeData.projectCode || ''}
+                    onChange={(e) => handleDataChange('projectCode', e.target.value)}
+                    placeholder="Ex: PX-2026-042"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono text-xs focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Cliente Vinculado</label>
+                  <input
+                    type="text"
+                    value={nodeData.clientName || ''}
+                    onChange={(e) => handleDataChange('clientName', e.target.value)}
+                    placeholder="Ex: Empresa ABC S/A"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Data de Início</label>
+                  <input
+                    type="date"
+                    value={nodeData.startDate || ''}
+                    onChange={(e) => handleDataChange('startDate', e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Prazo de Entrega</label>
+                  <input
+                    type="date"
+                    value={nodeData.dueDate || nodeData.deadline || ''}
+                    onChange={(e) => {
+                      handleDataChange('dueDate', e.target.value);
+                      handleDataChange('deadline', e.target.value);
+                    }}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-cyan-500"
                   />
                 </div>
               </div>

@@ -367,6 +367,15 @@ function getBaseNodeProgress(
       return Math.min(100, Math.max(0, d.progressPercent ?? d.currentValue ?? 65));
     }
 
+    case 'production_route': {
+      const steps = d.steps || [];
+      if (steps.length > 0) {
+        const done = steps.filter((s: any) => s.status === 'Concluído').length;
+        return Math.round((done / steps.length) * 100);
+      }
+      return d.overallRouteProgress ?? 0;
+    }
+
     default: {
       if (typeof d.progressPercent === 'number') {
         return Math.min(100, Math.max(0, d.progressPercent));
