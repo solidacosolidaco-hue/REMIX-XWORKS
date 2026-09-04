@@ -937,9 +937,9 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({
                           Nenhum pedido ou orçamento encontrado com o termo "{orderSearchQuery}".
                         </div>
                       ) : (
-                        filteredRegisteredOrders.map((ord) => (
+                        filteredRegisteredOrders.map((ord, idx) => (
                           <div
-                            key={ord.id}
+                            key={ord.id ? `reg-ord-${ord.id}-${idx}` : `reg-ord-idx-${idx}`}
                             onClick={() => handleSelectRegisteredOrder(ord)}
                             className="p-2.5 hover:bg-slate-800/80 cursor-pointer transition-colors flex items-center justify-between gap-3 text-left"
                           >
@@ -1287,9 +1287,9 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({
                               className="w-full bg-slate-950 border border-slate-800 rounded-lg p-1.5 text-xs text-white mb-2 focus:outline-none focus:border-blue-500"
                             />
                             <div className="max-h-52 overflow-y-auto space-y-1 pt-1">
-                              {filteredCustomersForOrder.map((c) => (
+                              {filteredCustomersForOrder.map((c, idx) => (
                                 <div
-                                  key={c.id}
+                                  key={c.id ? `cust-ord-${c.id}-${idx}` : `cust-ord-idx-${idx}`}
                                   onClick={() => handleSelectCustomerForOrder(c)}
                                   className="p-2 hover:bg-slate-800 rounded-lg cursor-pointer transition-colors text-left"
                                 >
@@ -1463,7 +1463,7 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({
                         </thead>
                         <tbody className="divide-y divide-slate-800/80">
                           {orderItems.map((item, idx) => (
-                            <tr key={item.id || idx} className="hover:bg-slate-900/40 transition-colors">
+                            <tr key={item.id ? `ord-item-${item.id}-${idx}` : `ord-item-idx-${idx}`} className="hover:bg-slate-900/40 transition-colors">
                               <td className="p-2">
                                 <input
                                   type="text"
@@ -1999,7 +1999,7 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
                     {kanbanColumns.map((col, idx) => (
-                      <div key={col.id} className="bg-slate-900/60 p-3.5 rounded-xl border border-slate-800/80 space-y-3 flex flex-col justify-between hover:border-slate-700/80 transition-colors">
+                      <div key={col.id ? `kanban-col-${col.id}-${idx}` : `kanban-col-idx-${idx}`} className="bg-slate-900/60 p-3.5 rounded-xl border border-slate-800/80 space-y-3 flex flex-col justify-between hover:border-slate-700/80 transition-colors">
                         <div>
                           <div className="flex items-center justify-between gap-2 mb-1.5">
                             <label className="block text-[10px] font-mono text-slate-500 uppercase tracking-wider">
@@ -2136,7 +2136,7 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({
               <h4 className="font-bold text-xs uppercase tracking-wider text-emerald-300">📊 Etapas / Tarefas do Progresso</h4>
               <div className="space-y-2">
                 {(nodeData.milestones || []).map((m: any, idx: number) => (
-                  <div key={idx} className="flex items-center gap-3">
+                  <div key={m.id ? `milestone-${m.id}-${idx}` : `milestone-idx-${idx}`} className="flex items-center gap-3">
                     <input
                       type="checkbox"
                       checked={m.achieved}
