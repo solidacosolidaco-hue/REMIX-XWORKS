@@ -77,6 +77,130 @@ function getNodeDisplayName(node: CanvasNode): string {
   return node.name || 'Quadro Sem Nome';
 }
 
+function getResponsibleForNode(
+  node: CanvasNode,
+  allNodes: CanvasNode[],
+  connections: Connection[],
+  availableSectors: CanvasNode[]
+): string {
+  // 1. Check direct connection to a supervisor
+  for (const c of connections) {
+    if (c.fromId === node.id || c.toId === node.id) {
+      const otherId = c.fromId === node.id ? c.toId : c.fromId;
+      const otherNode = allNodes.find(n => n.id === otherId);
+      if (otherNode && otherNode.type === 'supervisor') {
+        return otherNode.name || 'Líder';
+      }
+    }
+  }
+
+  // 2. Check sector's supervisor
+  const sectorNode = availableSectors.find(s => {
+    if (node.groupId === s.id) return true;
+    if (s.name && (node.data?.sector === s.name || node.data?.setor === s.name)) return true;
+    if (node.x !== undefined && node.y !== undefined && s.x !== undefined && s.y !== undefined && s.width && s.height) {
+      const cx = node.x + (node.width || 200) / 2;
+      const cy = node.y + (node.height || 100) / 2;
+      if (cx >= s.x && cx <= s.x + s.width && cy >= s.y && cy <= s.y + s.height) {
+        return true;
+      }
+    }
+    return false;
+  });
+
+  if (sectorNode) {
+    for (const c of connections) {
+      if (c.fromId === sectorNode.id || c.toId === sectorNode.id) {
+        const otherId = c.fromId === sectorNode.id ? c.toId : c.fromId;
+        const otherNode = allNodes.find(n => n.id === otherId);
+        if (otherNode && otherNode.type === 'supervisor') {
+          return otherNode.name || 'Líder';
+        }
+      }
+    }
+  }
+
+  // 3. Fallback to node data
+  if (node.data?.responsible) return String(node.data.responsible);
+  if (node.data?.supervisorName) return String(node.data.supervisorName);
+  if (node.data?.assignee) return String(node.data.assignee);
+  
+  return 'Equipe';
+}
+
+function getAssignedEmployeesForNode(
+  node: CanvasNode,
+  allNodes: CanvasNode[],
+  connections: Connection[],
+  availableSectors: CanvasNode[]
+): CanvasNode[] {
+  const assigned = new Map<string, CanvasNode>();
+
+  // If the node itself is an employee, maybe we just return it
+  if (node.type === 'employee') {
+    return [node];
+  }
+
+  // 1. Direct connections (both directions)
+  connections.forEach(c => {
+    if (c.fromId === node.id || c.toId === node.id) {
+      const otherId = c.fromId === node.id ? c.toId : c.fromId;
+      const otherNode = allNodes.find(n => n.id === otherId);
+      if (otherNode && otherNode.type === 'employee') {
+        assigned.set(otherNode.id, otherNode);
+      }
+    }
+  });
+
+  // 2. If no direct employees, check if there are employees inside the node's sector
+  if (assigned.size === 0) {
+    const sectorNode = availableSectors.find(s => {
+      if (node.groupId === s.id) return true;
+      if (s.name && (node.data?.sector === s.name || node.data?.setor === s.name)) return true;
+      if (node.x !== undefined && node.y !== undefined && s.x !== undefined && s.y !== undefined && s.width && s.height) {
+        const cx = node.x + (node.width || 200) / 2;
+        const cy = node.y + (node.height || 100) / 2;
+        if (cx >= s.x && cx <= s.x + s.width && cy >= s.y && cy <= s.y + s.height) {
+          return true;
+        }
+      }
+      return false;
+    });
+
+    if (sectorNode) {
+      // Find employees spatially inside the sector or connected to it
+      allNodes.forEach(n => {
+        if (n.type === 'employee') {
+          let isInside = false;
+          if (n.groupId === sectorNode.id) isInside = true;
+          else if (n.x !== undefined && n.y !== undefined && sectorNode.x !== undefined && sectorNode.y !== undefined && sectorNode.width && sectorNode.height) {
+            const cx = n.x + (n.width || 200) / 2;
+            const cy = n.y + (n.height || 100) / 2;
+            if (cx >= sectorNode.x && cx <= sectorNode.x + sectorNode.width && cy >= sectorNode.y && cy <= sectorNode.y + sectorNode.height) {
+              isInside = true;
+            }
+          }
+
+          if (!isInside) {
+            // check connections to sector
+             connections.forEach(c => {
+              if ((c.fromId === sectorNode.id && c.toId === n.id) || (c.toId === sectorNode.id && c.fromId === n.id)) {
+                isInside = true;
+              }
+            });
+          }
+
+          if (isInside) {
+             assigned.set(n.id, n);
+          }
+        }
+      });
+    }
+  }
+
+  return Array.from(assigned.values());
+}
+
 function getSalesOrderForNode(
   node: CanvasNode,
   allNodes: CanvasNode[],
@@ -624,7 +748,20 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
   // Find all nodes that logically and spatially belong to this sector
   const relatedNodes = useMemo(() => {
     const operationalNodes = effectiveNodes.filter(
-      n => n.type !== 'text' && n.type !== 'note' && n.type !== 'group' && n.type !== 'sector'
+      n => 
+        n.type !== 'text' && 
+        n.type !== 'note' && 
+        n.type !== 'group' && 
+        n.type !== 'sector' &&
+        n.type !== 'employee' &&
+        n.type !== 'supervisor' &&
+        n.type !== 'customer' &&
+        n.type !== 'interrupted_flow' &&
+        n.type !== 'attachment' &&
+        n.type !== 'document' &&
+        n.type !== 'financial_module' &&
+        n.type !== 'calendar' &&
+        n.type !== 'indicator'
     );
 
     if (isGlobal) {
@@ -795,6 +932,8 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
 
       const sectorName = getNodeSectorName(node, availableSectors, effectiveNodes, effectiveConnections);
       const salesOrder = getSalesOrderForNode(node, effectiveNodes, effectiveConnections);
+      const assignedEmployees = getAssignedEmployeesForNode(node, effectiveNodes, effectiveConnections, availableSectors);
+      const responsible = getResponsibleForNode(node, effectiveNodes, effectiveConnections, availableSectors);
       const boardName = (node.data?._boardName as string) || effectiveBoardName;
       const quadroName = getNodeDisplayName(node);
 
@@ -816,6 +955,8 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
         endFormatted: formatDisplayDate(rawDeadline),
         sectorName,
         salesOrder,
+        assignedEmployees,
+        responsible,
         boardName,
       };
     });
@@ -1214,31 +1355,40 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
       'Diagnóstico de Prazo',
       'Avanço (%)',
       'Responsável',
+      'Colaborador(es)',
+      'Função / Cargo',
       'Prioridade',
       'Gargalo',
       'Quantidade',
       'Valor (R$)'
     ];
 
-    const rows = filteredAndSortedNodes.map(item => [
-      `"${(item.boardName || effectiveBoardName).replace(/"/g, '""')}"`,
-      `"${(item.quadroName || item.node.name || '').replace(/"/g, '""')}"`,
-      `"${item.node.type}"`,
-      `"${(item.salesOrder || '---').replace(/"/g, '""')}"`,
-      `"${item.sectorName}"`,
-      `"${item.isCompleted ? 'Concluído' : item.isDelayed ? 'Atrasado' : item.isWarning ? 'Em Alerta' : item.isInProgress ? 'Em Andamento' : 'Pendente'}"`,
-      `"${(item.interruptionInfo.isInterrupted ? item.interruptionInfo.fullText : 'Fluxo Normal').replace(/"/g, '""')}"`,
-      `"${item.startFormatted}"`,
-      `"${item.endFormatted}"`,
-      `"${item.deadlineInfo.daysRemaining ?? ''}"`,
-      `"${(item.deadlineInfo.badgeText || item.deadlineInfo.reason || '').replace(/"/g, '""')}"`,
-      `"${item.progress}%"`,
-      `"${(item.node.data?.responsible || item.node.data?.supervisorName || 'Equipe').replace(/"/g, '""')}"`,
-      `"${item.node.data?.priority || 'Normal'}"`,
-      `"${item.isBottleneck ? 'Sim' : 'Não'}"`,
-      `"${item.node.data?.quantity || ''}"`,
-      `"${item.node.data?.totalOrderValue || item.node.data?.amount || ''}"`
-    ]);
+    const rows = filteredAndSortedNodes.map(item => {
+      const assignedNames = item.assignedEmployees.map(e => e.name).join(', ') || 'Nenhum';
+      const assignedRoles = item.assignedEmployees.map(e => e.data?.role || 'S/ Função').join(', ') || '---';
+
+      return [
+        `"${(item.boardName || effectiveBoardName).replace(/"/g, '""')}"`,
+        `"${(item.quadroName || item.node.name || '').replace(/"/g, '""')}"`,
+        `"${item.node.type}"`,
+        `"${(item.salesOrder || '---').replace(/"/g, '""')}"`,
+        `"${item.sectorName}"`,
+        `"${item.isCompleted ? 'Concluído' : item.isDelayed ? 'Atrasado' : item.isWarning ? 'Em Alerta' : item.isInProgress ? 'Em Andamento' : 'Pendente'}"`,
+        `"${(item.interruptionInfo.isInterrupted ? item.interruptionInfo.fullText : 'Fluxo Normal').replace(/"/g, '""')}"`,
+        `"${item.startFormatted}"`,
+        `"${item.endFormatted}"`,
+        `"${item.deadlineInfo.daysRemaining ?? ''}"`,
+        `"${(item.deadlineInfo.badgeText || item.deadlineInfo.reason || '').replace(/"/g, '""')}"`,
+        `"${item.progress}%"`,
+        `"${item.responsible.replace(/"/g, '""')}"`,
+        `"${assignedNames.replace(/"/g, '""')}"`,
+        `"${assignedRoles.replace(/"/g, '""')}"`,
+        `"${item.node.data?.priority || 'Normal'}"`,
+        `"${item.isBottleneck ? 'Sim' : 'Não'}"`,
+        `"${item.node.data?.quantity || ''}"`,
+        `"${item.node.data?.totalOrderValue || item.node.data?.amount || ''}"`
+      ];
+    });
 
     const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -1338,7 +1488,7 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
       });
 
       // Table Data: Setor, Nome, Início, Prazo Final, Faltam (Dias), Status e Fluxo Interrompido / Motivos
-      const tableHeaders = [['Setor', 'Nome', 'Início', 'Prazo Final', 'Faltam (Dias)', 'Status', 'Fluxo Interrompido / Motivos']];
+      const tableHeaders = [['Setor', 'Nome', 'Colaboradores/Resp', 'Início', 'Prazo Final', 'Faltam (Dias)', 'Status', 'Fluxo Interrompido / Motivos']];
 
       const tableRows = filteredAndSortedNodes.map(item => {
         const statusText = item.isCompleted 
@@ -1369,9 +1519,16 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
               ? 'Bloqueado'
               : 'Sem prazo';
 
+        let colabText = item.responsible;
+        if (item.assignedEmployees.length > 0) {
+          const namesAndRoles = item.assignedEmployees.map(e => `${e.name} (${e.data?.role || 'S/ Função'})`);
+          colabText += `\n${namesAndRoles.join('\n')}`;
+        }
+
         return [
           item.sectorName || 'Geral',
           item.quadroName || item.node.name || 'Sem nome',
+          colabText,
           item.startFormatted || '---',
           item.endFormatted || '---',
           daysRemainingText,
@@ -1381,13 +1538,14 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
       });
 
       const columnStylesConfig = {
-        0: { cellWidth: 28, fontStyle: 'bold' as const, overflow: 'linebreak' as const },
-        1: { cellWidth: 46, fontStyle: 'bold' as const, overflow: 'linebreak' as const },
-        2: { cellWidth: 22, halign: 'center' as const },
-        3: { cellWidth: 24, halign: 'center' as const, fontStyle: 'bold' as const },
-        4: { cellWidth: 24, halign: 'center' as const, fontStyle: 'bold' as const },
+        0: { cellWidth: 24, fontStyle: 'bold' as const, overflow: 'linebreak' as const },
+        1: { cellWidth: 40, fontStyle: 'bold' as const, overflow: 'linebreak' as const },
+        2: { cellWidth: 36, overflow: 'linebreak' as const, fontSize: 7 },
+        3: { cellWidth: 20, halign: 'center' as const },
+        4: { cellWidth: 21, halign: 'center' as const, fontStyle: 'bold' as const },
         5: { cellWidth: 24, halign: 'center' as const, fontStyle: 'bold' as const },
-        6: { cellWidth: 101, fontSize: 6.8, overflow: 'linebreak' as const, cellPadding: 2 },
+        6: { cellWidth: 24, halign: 'center' as const, fontStyle: 'bold' as const },
+        7: { cellWidth: 80, fontSize: 6.8, overflow: 'linebreak' as const, cellPadding: 2 },
       };
 
       autoTable(doc, {
@@ -2322,6 +2480,7 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
                                         <th className="px-3 py-2.5">Diagnóstico</th>
                                         <th className="px-3 py-2.5">Avanço</th>
                                         <th className="px-3 py-2.5">Responsável</th>
+                                        <th className="px-3 py-2.5">Colaboradores & Funções</th>
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-white/5 text-xs">
@@ -2504,8 +2663,28 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
                                               </div>
                                             </td>
 
-                                            <td className="px-3 py-3 text-[11px] text-slate-300">
-                                              {node.data?.responsible || node.data?.supervisorName || node.data?.operator || node.data?.machineName || 'Equipe'}
+                                            <td className="px-3 py-3 text-[11px] text-slate-100 font-bold truncate max-w-[120px]" title={item.responsible}>
+                                              {item.responsible}
+                                            </td>
+
+                                            <td className="px-3 py-3">
+                                              {item.assignedEmployees.length > 0 ? (
+                                                <div className="flex flex-col gap-1.5">
+                                                  {item.assignedEmployees.map(emp => (
+                                                    <div key={emp.id} className="flex flex-col border-l-2 border-blue-500/30 pl-2">
+                                                      <span className="text-[11px] font-bold text-blue-300 flex items-center gap-1 truncate max-w-[150px]">
+                                                        <User className="w-3 h-3" />
+                                                        {emp.name}
+                                                      </span>
+                                                      <span className="text-[9px] font-mono text-slate-400 truncate max-w-[150px]" title={emp.data?.role || 'S/ Função'}>
+                                                        {emp.data?.role || 'S/ Função'}
+                                                      </span>
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              ) : (
+                                                <span className="text-slate-500 text-[11px] italic">Sem atribuição</span>
+                                              )}
                                             </td>
                                           </tr>
                                         );
@@ -2535,6 +2714,7 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
                           <th className="px-4 py-3">Prazo Final</th>
                           <th className="px-4 py-3">Avanço</th>
                           <th className="px-4 py-3">Responsável</th>
+                          <th className="px-4 py-3">Colaboradores & Funções</th>
                         </tr>
                       ) : (
                         <tr>
@@ -2548,6 +2728,7 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
                           <th className="px-3 py-3.5">Avanço Real</th>
                           <th className="px-3 py-3.5">Qtd / Prioridade</th>
                           <th className="px-3 py-3.5">Responsável</th>
+                          <th className="px-3 py-3.5">Colaboradores & Funções</th>
                         </tr>
                       )}
                     </thead>
@@ -2641,8 +2822,23 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
                                 </div>
                               </td>
 
-                              <td className="px-4 py-3 text-slate-300 text-[11px] truncate max-w-[140px]">
-                                {node.data?.responsible || node.data?.supervisorName || node.data?.assignee || 'Equipe'}
+                              <td className="px-4 py-3 text-slate-100 font-bold text-[11px] truncate max-w-[140px]">
+                                {item.responsible}
+                              </td>
+
+                              <td className="px-4 py-3">
+                                {item.assignedEmployees.length > 0 ? (
+                                  <div className="flex flex-col gap-1">
+                                    {item.assignedEmployees.map(emp => (
+                                      <span key={emp.id} className="text-[10px] text-blue-300 font-medium truncate max-w-[140px]" title={`${emp.name} - ${emp.data?.role || 'S/ Função'}`}>
+                                        <User className="w-2.5 h-2.5 inline mr-1" />
+                                        {emp.name} <span className="text-slate-500">({emp.data?.role || 'S/ Função'})</span>
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span className="text-slate-500 text-[11px] italic">Nenhum</span>
+                                )}
                               </td>
                             </tr>
                           );
@@ -2889,8 +3085,29 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
                             </td>
 
                             {/* Responsável */}
-                            <td className="px-3 py-3.5 text-slate-300 text-[11px] font-medium truncate max-w-[120px]" title={node.data?.responsible || node.data?.supervisorName || 'Equipe'}>
-                              {node.data?.responsible || node.data?.supervisorName || node.data?.assignee || 'Equipe'}
+                            <td className="px-3 py-3.5 text-slate-100 font-bold text-[11px] truncate max-w-[120px]" title={item.responsible}>
+                              {item.responsible}
+                            </td>
+
+                            {/* Colaboradores & Funções */}
+                            <td className="px-3 py-3.5">
+                              {item.assignedEmployees.length > 0 ? (
+                                <div className="flex flex-col gap-1.5">
+                                  {item.assignedEmployees.map(emp => (
+                                    <div key={emp.id} className="flex flex-col border-l-2 border-blue-500/30 pl-2">
+                                      <span className="text-[11px] font-bold text-blue-300 flex items-center gap-1 truncate max-w-[150px]">
+                                        <User className="w-3 h-3" />
+                                        {emp.name}
+                                      </span>
+                                      <span className="text-[9px] font-mono text-slate-400 truncate max-w-[150px]" title={emp.data?.role || 'S/ Função'}>
+                                        {emp.data?.role || 'S/ Função'}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-slate-500 text-[11px] italic">Sem atribuição</span>
+                              )}
                             </td>
                           </tr>
                         );
@@ -2964,7 +3181,7 @@ export const SectorReportModal: React.FC<SectorReportModalProps> = ({
                               <span className="truncate">Ped. Venda: <b className="text-emerald-300 font-bold">{item.salesOrder}</b></span>
                               <span className="truncate">Setor: <b className="text-slate-200">{item.sectorName}</b></span>
                             </div>
-                            <span className="truncate">Resp: <b className="text-slate-200">{node.data?.responsible || node.data?.supervisorName || 'Equipe'}</b></span>
+                            <span className="truncate">Resp: <b className="text-slate-100 font-bold">{item.responsible}</b></span>
                           </div>
 
                           {/* Bloco de Prazos */}

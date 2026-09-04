@@ -96,8 +96,11 @@ function getBaseNodeProgress(
 
   const d = node.data || {};
 
-  // Para setores e grupos, calcular dinamicamente com base nos blocos internos
+  // Para setores e grupos, calcular dinamicamente com base nos blocos internos (ou usar valor manual se definido)
   if (node.type === 'sector' || node.type === 'group') {
+    if (typeof d.progressPercent === 'number') {
+      return Math.min(100, Math.max(0, d.progressPercent));
+    }
     if (allNodes && allNodes.length > 0) {
       const contained = allNodes.filter(
         (n) =>

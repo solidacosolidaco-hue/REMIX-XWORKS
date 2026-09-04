@@ -73,6 +73,7 @@ const ALL_SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: 'product', label: 'Produto Industrial', description: 'Catálogo de produto e SKU', nodeType: 'product', icon: <Package className="w-5 h-5 text-indigo-400" />, color: 'text-indigo-400' },
   { id: 'part', label: 'Peça / Componente', description: 'Peças mecânicas e materiais', nodeType: 'part', icon: <Cog className="w-5 h-5 text-cyan-400" />, color: 'text-cyan-400' },
   { id: 'service', label: 'Serviço Técnico', description: 'Usinagem, calibração e taxas', nodeType: 'service', icon: <Wrench className="w-5 h-5 text-purple-400" />, color: 'text-purple-400' },
+  { id: 'collaborator', label: 'Colaborador', description: 'Colaborador, com Nome e Função', nodeType: 'employee', icon: <User className="w-5 h-5 text-blue-400" />, color: 'text-blue-400' },
   { id: 'supervisor', label: 'Líder / Encarregado', description: 'Liderança de turno', nodeType: 'supervisor', icon: <ShieldCheck className="w-5 h-5 text-amber-400" />, color: 'text-amber-400' },
   { id: 'sector', label: 'Setor / Departamento', description: 'Setores de fábrica e máquinas', nodeType: 'sector', icon: <Factory className="w-5 h-5 text-emerald-400" />, color: 'text-emerald-400' },
   { id: 'production_route', label: 'Roteiro de Produção', description: 'Sequenciamento PCP', nodeType: 'production_route', icon: <GitMerge className="w-5 h-5 text-cyan-400" />, color: 'text-cyan-400' },
