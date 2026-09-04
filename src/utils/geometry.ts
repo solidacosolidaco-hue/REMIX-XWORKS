@@ -262,40 +262,38 @@ export function generatePath(
   const dx = end.x - start.x;
   const dy = end.y - start.y;
   const distance = Math.sqrt(dx * dx + dy * dy);
-  
-  // Cap curvature to prevent wild ballooning loops when nodes are far apart
-  const baseOffset = Math.min(Math.max(distance * 0.2, 20), 60);
+  const curvature = Math.max(distance * 0.35, 40);
 
   let cp1 = { x: start.x, y: start.y };
   let cp2 = { x: end.x, y: end.y };
 
   switch (startSide) {
     case 'right':
-      cp1 = { x: start.x + baseOffset, y: start.y };
+      cp1 = { x: start.x + curvature, y: start.y };
       break;
     case 'left':
-      cp1 = { x: start.x - baseOffset, y: start.y };
+      cp1 = { x: start.x - curvature, y: start.y };
       break;
     case 'bottom':
-      cp1 = { x: start.x, y: start.y + baseOffset };
+      cp1 = { x: start.x, y: start.y + curvature };
       break;
     case 'top':
-      cp1 = { x: start.x, y: start.y - baseOffset };
+      cp1 = { x: start.x, y: start.y - curvature };
       break;
   }
 
   switch (endSide) {
     case 'right':
-      cp2 = { x: end.x + baseOffset, y: end.y };
+      cp2 = { x: end.x + curvature, y: end.y };
       break;
     case 'left':
-      cp2 = { x: end.x - baseOffset, y: end.y };
+      cp2 = { x: end.x - curvature, y: end.y };
       break;
     case 'bottom':
-      cp2 = { x: end.x, y: end.y + baseOffset };
+      cp2 = { x: end.x, y: end.y + curvature };
       break;
     case 'top':
-      cp2 = { x: end.x, y: end.y - baseOffset };
+      cp2 = { x: end.x, y: end.y - curvature };
       break;
   }
 
