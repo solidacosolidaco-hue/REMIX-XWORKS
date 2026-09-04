@@ -21,7 +21,8 @@ import {
   Trash2,
   Check,
   RotateCcw,
-  AlertTriangle
+  AlertTriangle,
+  Star,
 } from 'lucide-react';
 
 interface TemplatesModalProps {
@@ -30,6 +31,7 @@ interface TemplatesModalProps {
   connections: Connection[];
   onClose: () => void;
   onLoadTemplate: (nodes: CanvasNode[], connections: Connection[]) => void;
+  onSaveAsDefaultProductTemplate?: () => void;
 }
 
 export const TemplatesModal: React.FC<TemplatesModalProps> = ({
@@ -38,6 +40,7 @@ export const TemplatesModal: React.FC<TemplatesModalProps> = ({
   connections,
   onClose,
   onLoadTemplate,
+  onSaveAsDefaultProductTemplate,
 }) => {
   const [importError, setImportError] = useState<string | null>(null);
   const [customTemplates, setCustomTemplates] = useState<WorkspaceTemplate[]>(() => {
@@ -238,6 +241,40 @@ export const TemplatesModal: React.FC<TemplatesModalProps> = ({
             <X className="w-4 h-4" />
           </button>
         </div>
+
+        {/* Quick Save as Default Product Model Banner */}
+        {onSaveAsDefaultProductTemplate && (
+          <div className="mb-3 p-3 rounded-xl bg-gradient-to-r from-amber-950/70 via-slate-900 to-slate-950 border border-amber-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0">
+                <Star className="w-5 h-5 fill-amber-400 text-amber-300 animate-pulse" />
+              </div>
+              <div>
+                <h4 className="font-bold text-xs text-amber-200 flex items-center gap-1.5">
+                  ★ Modelo Padrão de Produto da Empresa
+                </h4>
+                <p className="text-[11px] text-slate-300 leading-tight mt-0.5">
+                  Defina o layout desta lousa ({nodes.length} blocos e {connections.length} conexões) como o modelo oficial padrão para todas as novas lousas do sistema.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                onSaveAsDefaultProductTemplate();
+                // Refresh custom templates list
+                try {
+                  const saved = localStorage.getItem('xcanvas_custom_templates');
+                  if (saved) setCustomTemplates(JSON.parse(saved));
+                } catch (e) {}
+              }}
+              className="px-3.5 py-2 text-xs font-bold rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md flex items-center gap-1.5 transition-all shrink-0 hover:scale-[1.02] active:scale-95"
+            >
+              <Star className="w-4 h-4 fill-slate-950 text-slate-950" />
+              <span>Salvar Lousa como Modelo Padrão</span>
+            </button>
+          </div>
+        )}
 
         {/* Save Current Board Form */}
         <form onSubmit={handleSaveCurrentAsTemplate} className="mb-4 p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col gap-2.5">

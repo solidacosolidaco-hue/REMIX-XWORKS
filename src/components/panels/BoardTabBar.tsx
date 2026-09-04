@@ -20,6 +20,7 @@ import {
   User,
   Filter,
   Lock,
+  Star,
 } from 'lucide-react';
 
 interface BoardTabBarProps {
@@ -38,6 +39,7 @@ interface BoardTabBarProps {
   onDeleteBoard: (boardId: string) => void;
   onClearBoard: (boardId: string) => void;
   onResetAllData?: () => void;
+  onSaveAsDefaultProductTemplate?: (boardId: string) => void;
 }
 
 export const BoardTabBar: React.FC<BoardTabBarProps> = ({
@@ -56,6 +58,7 @@ export const BoardTabBar: React.FC<BoardTabBarProps> = ({
   onDeleteBoard,
   onClearBoard,
   onResetAllData,
+  onSaveAsDefaultProductTemplate,
 }) => {
   const [editingBoardId, setEditingBoardId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -248,7 +251,7 @@ export const BoardTabBar: React.FC<BoardTabBarProps> = ({
             style={{
               top: `${menuPosition.top}px`,
               left: `${menuPosition.left}px`,
-              width: '170px',
+              width: '190px',
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -278,11 +281,25 @@ export const BoardTabBar: React.FC<BoardTabBarProps> = ({
                 setMenuOpenId(null);
                 setMenuPosition(null);
               }}
-              className="w-full text-left px-3.5 py-1.5 hover:bg-slate-800 flex items-center gap-2 text-amber-400"
+              className="w-full text-left px-3.5 py-1.5 hover:bg-slate-800 flex items-center gap-2 text-slate-300"
             >
-              <Sparkles className="w-3.5 h-3.5" />
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
               Limpar Objetos
             </button>
+            {onSaveAsDefaultProductTemplate && (
+              <button
+                onClick={() => {
+                  onSaveAsDefaultProductTemplate(board.id);
+                  setMenuOpenId(null);
+                  setMenuPosition(null);
+                }}
+                className="w-full text-left px-3.5 py-1.5 hover:bg-amber-500/20 text-amber-300 flex items-center gap-2 border-t border-slate-800 mt-1 font-medium"
+                title="Salvar esta lousa como modelo padrão de produto para novas lousas"
+              >
+                <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400/30 shrink-0" />
+                <span>Salvar Modelo Padrão</span>
+              </button>
+            )}
             {boards.length > 1 && canDeleteThisBoard && (
               <button
                 onClick={() => {

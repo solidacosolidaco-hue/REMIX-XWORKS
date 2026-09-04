@@ -25,7 +25,9 @@ import {
   initialIndustrialNodes,
   initialIndustrialConnections,
   industrialPresentationSlides,
+  WorkspaceTemplate,
 } from './data/templates';
+import { CONTROLE_PRODUCAO_NODES, CONTROLE_PRODUCAO_CONNECTIONS } from './data/controleProducaoBoard';
 import { Canvas } from './components/canvas/Canvas';
 import { CanvasProvider } from './context/CanvasContext';
 import { Toolbar } from './components/panels/Toolbar';
@@ -1021,6 +1023,51 @@ export function App() {
     }
   };
 
+  const handleSaveAsDefaultProductTemplate = (boardId?: string) => {
+    const targetBoardId = boardId || activeBoardId;
+    const targetBoard = boards.find((b) => b.id === targetBoardId);
+
+    const nodesToSave = targetBoardId === activeBoardId ? nodes : (targetBoard?.nodes || []);
+    const connectionsToSave = targetBoardId === activeBoardId ? connections : (targetBoard?.connections || []);
+    const viewportToSave = targetBoardId === activeBoardId ? viewport : (targetBoard?.viewport || { x: 40, y: 20, scale: 0.6 });
+
+    const templateData = {
+      id: 'default-product-template',
+      name: targetBoard?.name || 'Modelo Padrão de Produto',
+      nodes: JSON.parse(JSON.stringify(nodesToSave)),
+      connections: JSON.parse(JSON.stringify(connectionsToSave)),
+      viewport: viewportToSave,
+      savedAt: new Date().toLocaleDateString('pt-BR') + ' às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    localStorage.setItem('xcanvas_default_product_template', JSON.stringify(templateData));
+
+    // Also update/insert into custom templates list
+    try {
+      const savedCustom = localStorage.getItem('xcanvas_custom_templates');
+      const customList: WorkspaceTemplate[] = savedCustom ? JSON.parse(savedCustom) : [];
+      const updatedList: WorkspaceTemplate[] = [
+        {
+          id: 'default-product-template',
+          name: `★ Modelo Padrão de Produto (${templateData.name})`,
+          description: `Modelo oficial da empresa salvo em ${templateData.savedAt} com ${nodesToSave.length} blocos e ${connectionsToSave.length} conexões.`,
+          category: 'Modelo Padrão',
+          nodes: JSON.parse(JSON.stringify(nodesToSave)),
+          connections: JSON.parse(JSON.stringify(connectionsToSave)),
+        },
+        ...customList.filter((t) => t.id !== 'default-product-template'),
+      ];
+      localStorage.setItem('xcanvas_custom_templates', JSON.stringify(updatedList));
+    } catch (e) {
+      console.error('Error updating custom templates list:', e);
+    }
+
+    alert(
+      `★ Lousa "${targetBoard?.name || 'Atual'}" salva como Modelo Padrão de Produto com sucesso!\n\n` +
+      `Todas as novas lousas criadas através do botão "+ Nova Lousa" agora iniciarão automaticamente com esta estrutura.`
+    );
+  };
+
   const handleAddBoard = (name?: string) => {
     if (currentUser && currentUser.role !== 'admin' && currentUser.permissions?.canCreateBoards === false) {
       alert('Seu usuário não possui permissão para criar novas lousas. Solicite autorização ao Administrador Geral (Ueliton).');
@@ -1030,12 +1077,34 @@ export function App() {
     const newBoardId = `board-${Date.now()}`;
     const newBoardName = name || `Lousa ${boards.length + 1}`;
 
+    // Load nodes and connections from saved default product template, or fallback to CONTROLE_PRODUCAO
+    let defaultNodes = CONTROLE_PRODUCAO_NODES;
+    let defaultConnections = CONTROLE_PRODUCAO_CONNECTIONS;
+    let defaultViewport = { x: 40, y: 20, scale: 0.6 };
+
+    try {
+      const savedDefault = localStorage.getItem('xcanvas_default_product_template');
+      if (savedDefault) {
+        const parsed = JSON.parse(savedDefault);
+        if (parsed.nodes && Array.isArray(parsed.nodes) && parsed.nodes.length > 0) {
+          defaultNodes = parsed.nodes;
+          defaultConnections = parsed.connections || [];
+          if (parsed.viewport) defaultViewport = parsed.viewport;
+        }
+      }
+    } catch (e) {
+      console.error('Error reading default product template:', e);
+    }
+
+    const newNodes = JSON.parse(JSON.stringify(defaultNodes));
+    const newConnections = JSON.parse(JSON.stringify(defaultConnections));
+
     const newBoard: CanvasBoard = {
       id: newBoardId,
       name: newBoardName,
-      nodes: [],
-      connections: [],
-      viewport: { x: 80, y: 40, scale: 0.85 },
+      nodes: newNodes,
+      connections: newConnections,
+      viewport: defaultViewport,
       createdAt: new Date().toLocaleDateString('pt-BR'),
       userId: currentUser?.id,
       ownerName: currentUser?.name || 'Funcionário',
@@ -1051,10 +1120,10 @@ export function App() {
 
     setBoards([...updatedBoards, newBoard]);
 
-    // Switch states to the new empty board
-    setNodes([]);
-    setConnections([]);
-    setViewport({ x: 80, y: 40, scale: 0.85 });
+    // Switch states to the new board
+    setNodes(newNodes);
+    setConnections(newConnections);
+    setViewport(defaultViewport);
     setSelectedNodeIds([]);
     setSelectedConnectionId(null);
     setInvestigatedNodeId(null);
@@ -1080,17 +1149,14 @@ export function App() {
     if (!boardToDup) return;
 
     const newBoardId = `board-${Date.now()}`;
+    const clonedNodes = JSON.parse(JSON.stringify(boardToDup.nodes));
+    const clonedConnections = JSON.parse(JSON.stringify(boardToDup.connections));
+
     const newBoard: CanvasBoard = {
       id: newBoardId,
       name: `${boardToDup.name} (Cópia)`,
-      nodes: boardToDup.nodes.map(n => ({
-        ...n,
-        id: `node-${Date.now()}-${Math.floor(Math.random() * 10000)}`
-      })),
-      connections: boardToDup.connections.map(c => ({
-        ...c,
-        id: `conn-${Date.now()}-${Math.floor(Math.random() * 10000)}`
-      })),
+      nodes: clonedNodes,
+      connections: clonedConnections,
       viewport: { ...boardToDup.viewport },
       createdAt: new Date().toLocaleDateString('pt-BR'),
       userId: currentUser?.id,
@@ -2752,6 +2818,7 @@ export function App() {
           onDeleteBoard={handleDeleteBoard}
           onClearBoard={handleClearBoard}
           onResetAllData={handleResetAllData}
+          onSaveAsDefaultProductTemplate={handleSaveAsDefaultProductTemplate}
         />
       )}
 
@@ -2956,6 +3023,7 @@ export function App() {
         nodes={nodes}
         connections={connections}
         onClose={() => setIsTemplatesOpen(false)}
+        onSaveAsDefaultProductTemplate={() => handleSaveAsDefaultProductTemplate()}
         onLoadTemplate={(newNodes, newConns) => {
           pushHistory();
           setNodes(newNodes);
