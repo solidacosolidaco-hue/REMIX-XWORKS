@@ -46,7 +46,6 @@ import { ImmersiveCalendarModal } from './components/panels/ImmersiveCalendarMod
 import { BoardTabBar } from './components/panels/BoardTabBar';
 import { SimplifiedView } from './components/panels/SimplifiedView';
 import { CommercialTerminalModal } from './components/panels/CommercialTerminalModal';
-import { SectorReportModal } from './components/panels/SectorReportModal';
 import { synchronizeFlowData } from './utils/flowIntelligence';
 import { getUpstreamNodesForIndicator, calculateNodeProgress } from './utils/nodeProgress';
 import { calculateBoundingBox, resolveNodeCollisions } from './utils/geometry';
@@ -199,8 +198,6 @@ export function App() {
   const [isImmersiveCalendarOpen, setIsImmersiveCalendarOpen] = useState(false);
   const [isSimplifiedViewOpen, setIsSimplifiedViewOpen] = useState(false);
   const [isCommercialTerminalOpen, setIsCommercialTerminalOpen] = useState(false);
-  const [isSectorReportOpen, setIsSectorReportOpen] = useState(false);
-  const [sectorReportTargetId, setSectorReportTargetId] = useState<string | null>(null);
   const [inspectorDockPosition, setInspectorDockPosition] = useState<'left' | 'right' | 'floating'>('right');
   const [inspectorWidth, setInspectorWidth] = useState(320);
   const [inspectorHeight, setInspectorHeight] = useState(600);
@@ -1291,11 +1288,6 @@ export function App() {
   const handleOpenNodeDetail = (nodeId: string) => {
     setNodeDetailTargetId(nodeId);
     setIsNodeDetailOpen(true);
-  };
-
-  const handleOpenSectorReport = (nodeId: string) => {
-    setSectorReportTargetId(nodeId);
-    setIsSectorReportOpen(true);
   };
 
   const handleUpdateFullNode = (updatedNode: CanvasNode) => {
@@ -2849,10 +2841,6 @@ export function App() {
               onOpenSimplifiedView={() => setIsSimplifiedViewOpen(true)}
               onStartPresentation={handleStartPresentation}
               onOpenEmployeeModal={() => setIsEmployeeModalOpen(true)}
-              onOpenGlobalReport={() => {
-                setSectorReportTargetId(null);
-                setIsSectorReportOpen(true);
-              }}
               isLightMode={isLightMode}
               onToggleLightMode={handleToggleLightMode}
             />
@@ -2903,7 +2891,6 @@ export function App() {
               onOpenAI={() => setIsAIOpen(true)}
               onOpenInvoiceModal={handleOpenInvoiceModal}
               onExpandNode={handleOpenNodeDetail}
-              onOpenSectorReport={handleOpenSectorReport}
               onFitView={handleFitView}
               onSetMode={setCanvasMode}
               onOpenProductsCatalog={() => setIsProductsCatalogOpen(true)}
@@ -3109,17 +3096,6 @@ export function App() {
         isOpen={isImmersiveCalendarOpen}
         onClose={() => setIsImmersiveCalendarOpen(false)}
         nodes={nodes}
-      />
-
-      <SectorReportModal
-        isOpen={isSectorReportOpen}
-        onClose={() => setIsSectorReportOpen(false)}
-        sectorId={sectorReportTargetId}
-        nodes={nodes}
-        connections={connections}
-        boards={renderedBoards}
-        activeBoardId={activeBoardId}
-        onSelectBoard={(boardId) => handleSelectBoard(boardId)}
       />
 
 

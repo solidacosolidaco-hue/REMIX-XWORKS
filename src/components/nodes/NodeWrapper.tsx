@@ -8,7 +8,7 @@ import {
 } from '../../utils/flowIntelligence';
 import { getNodeDeadlineInfo } from '../../utils/nodeDeadline';
 import { getNodeColorTheme } from '../../utils/nodeTheme';
-import { Lock, Unlock, Copy, CopyPlus, Trash2, Link, Sparkles, Maximize2, AlertTriangle, AlertCircle, CheckCircle2, FileText } from 'lucide-react';
+import { Lock, Unlock, Copy, CopyPlus, Trash2, Link, Sparkles, Maximize2, AlertTriangle, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface NodeWrapperProps {
   node: CanvasNode;
@@ -32,7 +32,6 @@ interface NodeWrapperProps {
   onCopy?: (nodeId: string) => void;
   onDelete?: (nodeId: string) => void;
   onExpand?: (nodeId: string) => void;
-  onOpenReport?: (nodeId: string) => void;
   children: React.ReactNode;
 }
 
@@ -58,7 +57,6 @@ export const NodeWrapper: React.FC<NodeWrapperProps> = ({
   onCopy,
   onDelete,
   onExpand,
-  onOpenReport,
   children,
 }) => {
   const handles = getNodeHandles(node, node.data.connectionPointsPerSide ?? 3);
@@ -171,30 +169,7 @@ export const NodeWrapper: React.FC<NodeWrapperProps> = ({
         isDimmed ? 'card-glow-dimmed' : ''
       }`}
     >
-      {/* Functional Nature Badge */}
-      {node.type !== 'group' && (
-        <div className="absolute -top-5 left-2 z-20 pointer-events-none opacity-50 group-hover:opacity-100 transition-opacity">
-          {(() => {
-            const nature = getNodeNature(node.type);
-            const styles: Record<string, string> = {
-              'Base de Dados': 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-              'Fluxo Principal': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-              'Controle Operacional': 'bg-slate-500/10 text-slate-400 border-slate-500/20',
-              'Métrica de Desempenho': 'bg-rose-500/10 text-rose-400 border-rose-500/20',
-              'Avanço de Status': 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
-              'Prazo Crítico': 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-              'Documentação': 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
-              'Área / Setor': 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-              'Suporte': 'bg-slate-500/10 text-slate-400 border-slate-500/20',
-            };
-            return (
-              <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-md border uppercase tracking-tighter shadow-sm backdrop-blur-sm ${styles[nature]}`}>
-                {nature}
-              </span>
-            );
-          })()}
-        </div>
-      )}
+      {/* Functional Nature Badge Removed for cleaner minimalist look */}
 
       {/* Deadline Status Badge on Top Right */}
       {deadlineInfo.state === 'delayed' && (
@@ -248,16 +223,6 @@ export const NodeWrapper: React.FC<NodeWrapperProps> = ({
               {node.type}
             </span>
             <div className="w-px h-3 bg-white/10" />
-            {(node.type === 'sector' || node.type === 'group') && (
-              <button
-                id={`btn-report-${node.id}`}
-                onClick={() => onOpenReport?.(node.id)}
-                className="p-1 hover:text-emerald-400 hover:bg-white/10 rounded transition-colors"
-                title="Emitir Relatório de Status"
-              >
-                <FileText className="w-3.5 h-3.5 text-emerald-400" />
-              </button>
-            )}
             <button
               id={`btn-expand-${node.id}`}
               onClick={() => onExpand?.(node.id)}

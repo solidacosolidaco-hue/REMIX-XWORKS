@@ -60,55 +60,28 @@ export const BudgetNode: React.FC<BudgetNodeProps> = ({
   return (
     <div
       id={`budget-node-${node.id}`}
-      className="p-4 bg-gradient-to-br from-amber-950/40 via-slate-900/95 to-slate-950/95 border border-amber-500/30 rounded-xl shadow-2xl backdrop-blur-md text-slate-100 flex flex-col justify-between w-full h-full"
+      className="p-3.5 bg-slate-900/95 border border-amber-500/30 rounded-xl shadow-xl backdrop-blur-md text-slate-100 flex flex-col justify-between w-full h-full hover:border-amber-500/50 transition-colors"
     >
       <div>
         {/* Header Simplificado */}
-        <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/5">
-          <div className="flex items-center gap-2">
-            <div className="p-1 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30">
-              <Calculator className="w-3.5 h-3.5" />
-            </div>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400">
+        <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
+          <div className="flex items-center gap-1.5">
+            <Calculator className="w-4 h-4 text-amber-400" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400">
               ORÇAMENTO
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            {editingField === 'budgetNumber' ? (
-              <input
-                type="text"
-                autoFocus
-                value={tempValue}
-                onChange={(e) => setTempValue(e.target.value)}
-                onBlur={() => saveEditing('budgetNumber')}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') saveEditing('budgetNumber');
-                  if (e.key === 'Escape') setEditingField(null);
-                }}
-                onClick={(e) => e.stopPropagation()}
-                className="bg-slate-900 border border-amber-500 rounded px-1.5 py-0.5 text-[9px] font-mono text-amber-300 focus:outline-none w-24"
-              />
-            ) : (
-              <span
-                onClick={(e) => {
-                  e.stopPropagation();
-                  startEditing('budgetNumber', budgetNumber);
-                }}
-                className="px-2 py-0.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded text-[9px] font-mono font-bold cursor-pointer transition-all"
-                title="Clique para editar código do orçamento"
-              >
-                #{budgetNumber}
-              </span>
-            )}
-
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-              <span className="text-[10px] font-mono font-bold text-emerald-300">
-                Ativo
-              </span>
-            </div>
-          </div>
+          <span
+            onClick={(e) => {
+              e.stopPropagation();
+              startEditing('budgetNumber', budgetNumber);
+            }}
+            className="px-2 py-0.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded text-[10px] font-mono font-bold cursor-pointer transition-all"
+            title="Clique para editar código"
+          >
+            #{budgetNumber}
+          </span>
         </div>
 
         {/* Título do Orçamento */}
@@ -123,12 +96,12 @@ export const BudgetNode: React.FC<BudgetNodeProps> = ({
                 if (e.key === 'Enter') saveEditing('title');
                 if (e.key === 'Escape') setEditingField(null);
               }}
-              className="bg-slate-900 border border-amber-500 rounded px-2 py-1 text-xs text-white font-semibold focus:outline-none w-full"
+              className="bg-slate-950 border border-amber-500 rounded px-2 py-1 text-xs text-white font-semibold focus:outline-none w-full"
             />
             <button
               type="button"
               onClick={() => saveEditing('title')}
-              className="p-1 rounded bg-amber-600 text-slate-950 font-bold hover:bg-amber-500 shrink-0"
+              className="p-1 rounded bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 shrink-0"
             >
               <Check className="w-3.5 h-3.5" />
             </button>
@@ -139,21 +112,17 @@ export const BudgetNode: React.FC<BudgetNodeProps> = ({
               e.stopPropagation();
               startEditing('title', node.name || 'Orçamento Comercial');
             }}
-            className="font-bold text-sm text-white mb-2 leading-snug cursor-pointer hover:text-amber-300 hover:bg-amber-500/10 rounded px-1 -mx-1 transition-all flex items-center justify-between"
-            title="Clique para editar o nome do orçamento"
+            className="font-bold text-sm text-white mb-2 leading-snug cursor-pointer hover:text-amber-300 transition-colors truncate"
+            title="Clique para editar o nome"
           >
-            <span>{node.name}</span>
-            <span className="text-[10px] text-amber-400 opacity-60">✏️</span>
+            {node.name}
           </h3>
         )}
 
-        {/* Painel Principal Simplificado: Cliente + Valor */}
-        <div className="grid grid-cols-2 gap-2 p-2.5 bg-slate-950/60 rounded-lg border border-white/5 text-[10px] mb-2 font-mono">
-          {/* CLIENTE */}
-          <div>
-            <span className="text-slate-500 block uppercase font-bold text-[9px] mb-0.5">
-              CLIENTE
-            </span>
+        {/* Painel Principal: Cliente e Valor */}
+        <div className="p-2.5 bg-slate-950/70 rounded-lg border border-white/5 space-y-1.5 text-xs mb-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-slate-400 text-[10px] font-semibold uppercase">Cliente</span>
             {editingField === 'customerName' ? (
               <input
                 type="text"
@@ -166,7 +135,7 @@ export const BudgetNode: React.FC<BudgetNodeProps> = ({
                   if (e.key === 'Escape') setEditingField(null);
                 }}
                 onClick={(e) => e.stopPropagation()}
-                className="bg-slate-900 border border-amber-500 rounded px-1 py-0.5 text-[10px] text-white focus:outline-none w-full"
+                className="bg-slate-900 border border-amber-500 rounded px-1.5 py-0.5 text-xs text-white focus:outline-none w-32"
               />
             ) : (
               <span
@@ -174,19 +143,16 @@ export const BudgetNode: React.FC<BudgetNodeProps> = ({
                   e.stopPropagation();
                   startEditing('customerName', customerName);
                 }}
-                className="text-slate-200 font-semibold truncate block cursor-pointer hover:text-amber-300 hover:bg-amber-500/10 rounded px-1 -mx-1 transition-all"
-                title="Clique para editar o cliente"
+                className="text-slate-200 font-medium truncate cursor-pointer hover:text-amber-300 transition-colors"
+                title="Clique para editar cliente"
               >
                 {customerName}
               </span>
             )}
           </div>
 
-          {/* VALOR */}
-          <div>
-            <span className="text-slate-500 block uppercase font-bold text-[9px] mb-0.5">
-              VALOR PROPOSTO
-            </span>
+          <div className="flex items-center justify-between gap-2 pt-1 border-t border-white/5">
+            <span className="text-slate-400 text-[10px] font-semibold uppercase">Valor</span>
             {editingField === 'budgetValue' ? (
               <input
                 type="text"
@@ -199,7 +165,7 @@ export const BudgetNode: React.FC<BudgetNodeProps> = ({
                   if (e.key === 'Escape') setEditingField(null);
                 }}
                 onClick={(e) => e.stopPropagation()}
-                className="bg-slate-900 border border-amber-500 rounded px-1 py-0.5 text-[10px] text-amber-300 font-bold focus:outline-none w-full"
+                className="bg-slate-900 border border-amber-500 rounded px-1.5 py-0.5 text-xs text-amber-300 font-bold focus:outline-none w-28"
               />
             ) : (
               <span
@@ -207,8 +173,8 @@ export const BudgetNode: React.FC<BudgetNodeProps> = ({
                   e.stopPropagation();
                   startEditing('budgetValue', String(budgetValue));
                 }}
-                className="text-amber-300 font-bold text-xs block cursor-pointer hover:bg-amber-500/10 rounded px-1 -mx-1 transition-all"
-                title="Clique para editar o valor"
+                className="text-amber-400 font-bold text-sm cursor-pointer hover:text-amber-300 transition-colors"
+                title="Clique para editar valor"
               >
                 {formattedValue}
               </span>
@@ -216,79 +182,43 @@ export const BudgetNode: React.FC<BudgetNodeProps> = ({
           </div>
         </div>
 
-        {/* Validade e Condições em linha única simples */}
-        <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 px-1 mb-2 gap-2">
-          {/* Validade */}
-          <div className="flex items-center gap-1 truncate">
-            <Calendar className="w-3 h-3 text-amber-400 shrink-0" />
+        {/* Validade e Condições */}
+        <div className="flex items-center justify-between text-[11px] text-slate-400 px-0.5 mb-2 gap-2">
+          <div className="flex items-center gap-1">
+            <Calendar className="w-3.5 h-3.5 text-amber-400 shrink-0" />
             <span>Validade:</span>
-            {editingField === 'validUntil' ? (
-              <input
-                type="text"
-                autoFocus
-                value={tempValue}
-                onChange={(e) => setTempValue(e.target.value)}
-                onBlur={() => saveEditing('validUntil')}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') saveEditing('validUntil');
-                  if (e.key === 'Escape') setEditingField(null);
-                }}
-                onClick={(e) => e.stopPropagation()}
-                className="bg-slate-900 border border-amber-500 rounded px-1 py-0.5 text-[10px] text-white focus:outline-none w-20"
-              />
-            ) : (
-              <span
-                onClick={(e) => {
-                  e.stopPropagation();
-                  startEditing('validUntil', validUntil);
-                }}
-                className="text-slate-200 font-semibold cursor-pointer hover:text-amber-300 hover:bg-amber-500/10 rounded px-1 transition-all"
-                title="Clique para editar data de validade"
-              >
-                {validUntil.split('-').reverse().join('/')}
-              </span>
-            )}
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                startEditing('validUntil', validUntil);
+              }}
+              className="text-slate-200 font-semibold cursor-pointer hover:text-amber-300"
+            >
+              {validUntil.split('-').reverse().join('/')}
+            </span>
           </div>
 
-          {/* Condições */}
-          <div className="flex items-center gap-1 truncate">
+          <div className="flex items-center gap-1">
             <span>Cond:</span>
-            {editingField === 'paymentConditions' ? (
-              <input
-                type="text"
-                autoFocus
-                value={tempValue}
-                onChange={(e) => setTempValue(e.target.value)}
-                onBlur={() => saveEditing('paymentConditions')}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') saveEditing('paymentConditions');
-                  if (e.key === 'Escape') setEditingField(null);
-                }}
-                onClick={(e) => e.stopPropagation()}
-                className="bg-slate-900 border border-amber-500 rounded px-1 py-0.5 text-[10px] text-white focus:outline-none w-20"
-              />
-            ) : (
-              <span
-                onClick={(e) => {
-                  e.stopPropagation();
-                  startEditing('paymentConditions', paymentConditions);
-                }}
-                className="text-slate-200 font-semibold cursor-pointer hover:text-amber-300 hover:bg-amber-500/10 rounded px-1 transition-all"
-                title="Clique para editar condições comerciais"
-              >
-                {paymentConditions}
-              </span>
-            )}
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                startEditing('paymentConditions', paymentConditions);
+              }}
+              className="text-slate-200 font-semibold cursor-pointer hover:text-amber-300"
+            >
+              {paymentConditions}
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Botão de Ação Direta Simplificado */}
-      <div className="pt-2 border-t border-white/5">
+      {/* Botão de Ação Direta */}
+      <div className="pt-2 border-t border-white/10">
         {isConverted ? (
-          <div className="w-full py-2 bg-emerald-500/15 border border-emerald-500/30 rounded-lg text-emerald-300 text-[11px] font-mono font-bold flex items-center justify-center gap-1.5 shadow-sm">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Aprovado & Convertido em Pedido</span>
+          <div className="w-full py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-400 text-xs font-semibold flex items-center justify-center gap-1.5">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <span>Convertido em Pedido</span>
           </div>
         ) : (
           <button
@@ -297,10 +227,10 @@ export const BudgetNode: React.FC<BudgetNodeProps> = ({
               e.stopPropagation();
               onConvertToOrder?.(node.id);
             }}
-            className="w-full py-2 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-extrabold text-xs rounded-lg transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+            className="w-full py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
           >
-            <ArrowRight className="w-3.5 h-3.5 text-slate-950" />
-            <span>Aprovar & Converter em Pedido</span>
+            <ArrowRight className="w-4 h-4" />
+            <span>Aprovar e Converter</span>
           </button>
         )}
       </div>

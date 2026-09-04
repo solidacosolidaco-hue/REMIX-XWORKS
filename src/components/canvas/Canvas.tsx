@@ -102,7 +102,6 @@ interface CanvasProps {
   onOpenProductsCatalog?: () => void;
   onOpenCalendarModal?: () => void;
   onOpenEmployeeModal?: () => void;
-  onOpenSectorReport?: (nodeId: string) => void;
   onConvertToOrder?: (budgetId: string) => void;
   theme?: CanvasTheme;
   onChangeTheme?: (theme: CanvasTheme) => void;
@@ -147,7 +146,6 @@ export const Canvas: React.FC<CanvasProps> = ({
   onOpenProductsCatalog,
   onOpenCalendarModal,
   onOpenEmployeeModal,
-  onOpenSectorReport,
   onConvertToOrder,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -635,7 +633,6 @@ export const Canvas: React.FC<CanvasProps> = ({
             allNodes={nodes}
             onUpdateData={onUpdateNodeData}
             onUpdateTitle={onUpdateNodeTitle}
-            onOpenReport={onOpenSectorReport}
           />
         );
       case 'custom':
@@ -725,7 +722,6 @@ export const Canvas: React.FC<CanvasProps> = ({
             allNodes={nodes}
             onUpdateData={onUpdateNodeData}
             onUpdateTitle={onUpdateNodeTitle}
-            onOpenReport={onOpenSectorReport}
           />
         );
       case 'interrupted_flow':
@@ -920,7 +916,6 @@ export const Canvas: React.FC<CanvasProps> = ({
                 validTargetHandles={validTargetHandles}
                 suggestedHandles={suggestedHandles}
                 isBottleneck={isBottleneck}
-                onOpenReport={onOpenSectorReport}
                 onSelect={(id, isMulti) => {
                   if (activeConnecting) {
                     handleEndConnect(id);

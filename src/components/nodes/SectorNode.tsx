@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CanvasNode } from '../../types/canvas';
-import { Factory, Cpu, Users, FileText, Check } from 'lucide-react';
+import { Factory, Cpu, Users, Check } from 'lucide-react';
 import { NodeTimeFrame } from '../common/NodeTimeFrame';
 
 interface SectorNodeProps {
@@ -8,7 +8,6 @@ interface SectorNodeProps {
   allNodes?: CanvasNode[];
   onUpdateData?: (nodeId: string, data: Partial<CanvasNode['data']>) => void;
   onUpdateTitle?: (nodeId: string, title: string) => void;
-  onOpenReport?: (nodeId: string) => void;
 }
 
 export const SectorNode: React.FC<SectorNodeProps> = ({
@@ -16,7 +15,6 @@ export const SectorNode: React.FC<SectorNodeProps> = ({
   allNodes,
   onUpdateData,
   onUpdateTitle,
-  onOpenReport,
 }) => {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState('');
@@ -229,18 +227,6 @@ export const SectorNode: React.FC<SectorNodeProps> = ({
             )}
           </div>
         </div>
-
-        {/* Action Button */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            if (onOpenReport) onOpenReport(node.id);
-          }}
-          className="w-full py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg flex items-center justify-center gap-2 text-emerald-400 text-[10px] font-bold uppercase tracking-wider transition-all hover:shadow-[0_0_15px_rgba(16,185,129,0.2)] group"
-        >
-          <FileText className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
-          <span>Relatório Completo do Setor</span>
-        </button>
       </div>
     </div>
   );

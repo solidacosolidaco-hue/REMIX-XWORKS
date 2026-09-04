@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CanvasNode } from '../../types/canvas';
-import { Layers, Building2, Cpu, Factory, ShoppingCart, FileText } from 'lucide-react';
+import { Layers, Building2, Cpu, Factory, ShoppingCart } from 'lucide-react';
 import { NodeProgressBar } from '../common/NodeProgressBar';
 import { getNodeColorTheme } from '../../utils/nodeTheme';
 
@@ -9,7 +9,6 @@ interface GroupNodeProps {
   allNodes?: CanvasNode[];
   onUpdateData?: (nodeId: string, data: Partial<CanvasNode['data']>) => void;
   onUpdateTitle?: (nodeId: string, title: string) => void;
-  onOpenReport?: (nodeId: string) => void;
 }
 
 export const GroupNode: React.FC<GroupNodeProps> = ({
@@ -17,7 +16,6 @@ export const GroupNode: React.FC<GroupNodeProps> = ({
   allNodes,
   onUpdateData,
   onUpdateTitle,
-  onOpenReport,
 }) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState(node.name || 'Novo Setor');
@@ -96,19 +94,6 @@ export const GroupNode: React.FC<GroupNodeProps> = ({
                 </h2>
               )}
             </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onOpenReport) onOpenReport(node.id);
-              }}
-              className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition-all group/btn"
-              title="Emitir Relatório de Status do Setor"
-            >
-              <FileText className="w-3.5 h-3.5 group-hover/btn:scale-110 transition-transform" />
-            </button>
           </div>
         </div>
 

@@ -113,7 +113,6 @@ interface ToolbarProps {
   onOpenSimplifiedView?: () => void;
   onStartPresentation: () => void;
   onOpenEmployeeModal?: () => void;
-  onOpenGlobalReport?: () => void;
   isLightMode?: boolean;
   onToggleLightMode?: () => void;
 }
@@ -140,7 +139,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onOpenSimplifiedView,
   onStartPresentation,
   onOpenEmployeeModal,
-  onOpenGlobalReport,
   isLightMode = false,
   onToggleLightMode,
 }) => {
@@ -487,20 +485,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         >
           <Maximize className="w-4 h-4" />
         </button>
-
-        {onOpenGlobalReport && (
-          <>
-            <div className="w-px h-3.5 bg-white/10 mx-0.5" />
-            <button
-              id="btn-global-report"
-              onClick={onOpenGlobalReport}
-              className="p-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-full text-emerald-400 hover:text-emerald-300 transition-all border border-emerald-500/20 shadow-lg shadow-emerald-500/5"
-              title="Relatório Executivo Geral (Tudo)"
-            >
-              <FileText className="w-4 h-4" />
-            </button>
-          </>
-        )}
 
         {onChangeTheme && (
           <>
