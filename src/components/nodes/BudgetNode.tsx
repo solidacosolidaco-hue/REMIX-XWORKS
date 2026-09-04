@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { CanvasNode } from '../../types/canvas';
-import { Calculator, Calendar, Clock, ArrowRight, CheckCircle2, FileSpreadsheet, Eye, EyeOff } from 'lucide-react';
-import { NodeProgressBar } from '../common/NodeProgressBar';
-import { getNodeColorTheme } from '../../utils/nodeTheme';
+import { Calculator, Calendar, ArrowRight, CheckCircle2, DollarSign, UserCheck, Check } from 'lucide-react';
 
 interface BudgetNodeProps {
   node: CanvasNode;
@@ -17,336 +15,294 @@ export const BudgetNode: React.FC<BudgetNodeProps> = ({
   onUpdateTitle,
   onConvertToOrder,
 }) => {
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [isEditingDetails, setIsEditingDetails] = useState(false);
-  const [isPeekingValue, setIsPeekingValue] = useState(false);
-  const [titleInput, setTitleInput] = useState(node.name || 'Orçamento Comercial');
-  const [customerInput, setCustomerInput] = useState(node.data.customerName || 'Cliente em Prospecção');
-  const [valueInput, setValueInput] = useState(node.data.orderValue || node.data.totalOrderValue || 120000);
-  const [validUntilInput, setValidUntilInput] = useState(node.data.validUntil || '2026-09-25');
-  const [paymentConditionInput, setPaymentConditionInput] = useState(node.data.paymentConditions || '30 DDL');
-  const isHideValueOnly = Boolean(node.data.hideValueOnly || node.data.hideValue);
-  const [isHideValueOnlyInput, setIsHideValueOnlyInput] = useState(isHideValueOnly);
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [tempValue, setTempValue] = useState('');
 
-  const budgetNumberBadge = node.data.budgetNumber || node.data.orderCode || 'ORC-2026-001';
+  const budgetNumber = node.data.budgetNumber || node.data.orderCode || 'ORC-2026-001';
   const customerName = node.data.customerName || 'Cliente em Prospecção';
   const budgetValue = node.data.totalOrderValue || node.data.orderValue || 120000;
   const validUntil = node.data.validUntil || '2026-09-25';
-  const commercialStatus = node.data.commercialStatus || 'Orçamento em Elaboração';
+  const paymentConditions = node.data.paymentConditions || '30 DDL';
   const isConverted = Boolean(node.data.salesOrderNumber || node.data.convertedToOrderId);
-
-  const itemsList =
-    node.data.orderItems && node.data.orderItems.length > 0
-      ? node.data.orderItems.map((i) => `${i.quantity}x ${i.description}`)
-      : node.data.itemsList || [
-          'Estrutura e componentes principais',
-          'Montagem técnica e testes em fábrica',
-        ];
+  const commercialStatus = node.data.commercialStatus || 'Em Elaboração';
 
   const formattedValue = new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
     maximumFractionDigits: 0,
-  }).format(budgetValue);
+  }).format(Number(budgetValue) || 0);
 
-  const handleTitleSubmit = () => {
-    setIsEditingTitle(false);
-    if (titleInput.trim() && onUpdateTitle) {
-      onUpdateTitle(node.id, titleInput.trim());
-    }
+  const startEditing = (field: string, initialVal: string) => {
+    setEditingField(field);
+    setTempValue(initialVal);
   };
 
-  const handleDetailsSubmit = () => {
-    setIsEditingDetails(false);
-    if (onUpdateData) {
-      onUpdateData(node.id, {
-        customerName: customerInput,
-        orderValue: Number(valueInput),
-        totalOrderValue: Number(valueInput),
-        hideValueOnly: isHideValueOnlyInput,
-        hideValue: isHideValueOnlyInput,
-        validUntil: validUntilInput,
-        paymentConditions: paymentConditionInput,
-      });
+  const saveEditing = (field: string) => {
+    setEditingField(null);
+    const val = tempValue.trim();
+
+    if (field === 'title') {
+      if (val) onUpdateTitle?.(node.id, val);
+    } else if (field === 'budgetNumber') {
+      onUpdateData?.(node.id, { budgetNumber: val || 'ORC-001', orderCode: val || 'ORC-001' });
+    } else if (field === 'customerName') {
+      onUpdateData?.(node.id, { customerName: val || 'Cliente' });
+    } else if (field === 'budgetValue') {
+      const num = parseFloat(val.replace(/[^\d.,]/g, '').replace(',', '.'));
+      onUpdateData?.(node.id, { totalOrderValue: isNaN(num) ? 0 : num, orderValue: isNaN(num) ? 0 : num });
+    } else if (field === 'validUntil') {
+      onUpdateData?.(node.id, { validUntil: val || '2026-09-25' });
+    } else if (field === 'paymentConditions') {
+      onUpdateData?.(node.id, { paymentConditions: val || 'À Vista' });
     }
   };
-
-  // Calcular dias de validade restantes
-  const today = new Date('2026-09-02');
-  const validDate = new Date(validUntil);
-  const diffTime = validDate.getTime() - today.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-  const theme = getNodeColorTheme(node.color || 'amber');
 
   return (
     <div
       id={`budget-node-${node.id}`}
-      className={`p-4 bg-gradient-to-br ${theme.bgGradient} border ${theme.borderNormal} hover:${theme.borderHover} rounded-xl shadow-2xl backdrop-blur-md text-slate-100 flex flex-col justify-between w-full h-full transition-all`}
+      className="p-4 bg-gradient-to-br from-amber-950/40 via-slate-900/95 to-slate-950/95 border border-amber-500/30 rounded-xl shadow-2xl backdrop-blur-md text-slate-100 flex flex-col justify-between w-full h-full"
     >
-      <div
-        onClick={(e) => {
-          e.stopPropagation();
-          if (!isEditingDetails) setIsEditingDetails(true);
-        }}
-        className="cursor-pointer"
-      >
-        {/* Header Exclusivo de Orçamento */}
-        <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
+      <div>
+        {/* Header Simplificado */}
+        <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/5">
           <div className="flex items-center gap-2">
-            <div className={`p-1.5 rounded-lg ${theme.iconBg} ${theme.iconText} border ${theme.iconBorder}`}>
+            <div className="p-1 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30">
               <Calculator className="w-3.5 h-3.5" />
             </div>
-            <div>
-              <span className={`text-[10px] font-bold uppercase tracking-widest ${theme.textAccent} block leading-tight`}>
-                QUADRO DE ORÇAMENTO
-              </span>
-              <span className="text-[8px] font-mono text-slate-400 uppercase">
-                Proposta Comercial
-              </span>
-            </div>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400">
+              ORÇAMENTO
+            </span>
           </div>
 
           <div className="flex items-center gap-1.5">
-            <span className={`px-2 py-0.5 ${theme.badgeBg} ${theme.badgeText} border ${theme.badgeBorder} rounded text-[9px] font-bold font-mono`}>
-              #{budgetNumberBadge}
-            </span>
+            {editingField === 'budgetNumber' ? (
+              <input
+                type="text"
+                autoFocus
+                value={tempValue}
+                onChange={(e) => setTempValue(e.target.value)}
+                onBlur={() => saveEditing('budgetNumber')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') saveEditing('budgetNumber');
+                  if (e.key === 'Escape') setEditingField(null);
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-slate-900 border border-amber-500 rounded px-1.5 py-0.5 text-[9px] font-mono text-amber-300 focus:outline-none w-24"
+              />
+            ) : (
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  startEditing('budgetNumber', budgetNumber);
+                }}
+                className="px-2 py-0.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded text-[9px] font-mono font-bold cursor-pointer transition-all"
+                title="Clique para editar código do orçamento"
+              >
+                #{budgetNumber}
+              </span>
+            )}
+
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+              <span className="text-[10px] font-mono font-bold text-emerald-300">
+                Ativo
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Title & Customer */}
-        {isEditingTitle ? (
-          <input
-            type="text"
-            autoFocus
-            value={titleInput}
-            onChange={(e) => setTitleInput(e.target.value)}
-            onBlur={handleTitleSubmit}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleTitleSubmit();
-            }}
-            className="bg-slate-900 border border-amber-500/50 rounded px-1.5 py-0.5 text-xs text-amber-200 font-semibold focus:outline-none w-full mb-1 font-mono"
-          />
+        {/* Título do Orçamento */}
+        {editingField === 'title' ? (
+          <div className="flex items-center gap-1 mb-2" onClick={(e) => e.stopPropagation()}>
+            <input
+              type="text"
+              autoFocus
+              value={tempValue}
+              onChange={(e) => setTempValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') saveEditing('title');
+                if (e.key === 'Escape') setEditingField(null);
+              }}
+              className="bg-slate-900 border border-amber-500 rounded px-2 py-1 text-xs text-white font-semibold focus:outline-none w-full"
+            />
+            <button
+              type="button"
+              onClick={() => saveEditing('title')}
+              className="p-1 rounded bg-amber-600 text-slate-950 font-bold hover:bg-amber-500 shrink-0"
+            >
+              <Check className="w-3.5 h-3.5" />
+            </button>
+          </div>
         ) : (
           <h3
             onClick={(e) => {
               e.stopPropagation();
-              setIsEditingTitle(true);
+              startEditing('title', node.name || 'Orçamento Comercial');
             }}
-            className="font-bold text-sm text-white mb-0.5 leading-snug cursor-pointer hover:underline hover:text-amber-300 transition-colors"
-            title="Clique para editar o título do orçamento"
+            className="font-bold text-sm text-white mb-2 leading-snug cursor-pointer hover:text-amber-300 hover:bg-amber-500/10 rounded px-1 -mx-1 transition-all flex items-center justify-between"
+            title="Clique para editar o nome do orçamento"
           >
-            {node.name}
+            <span>{node.name}</span>
+            <span className="text-[10px] text-amber-400 opacity-60">✏️</span>
           </h3>
         )}
 
-        {isEditingDetails ? (
-          <div
-            className="space-y-2 mb-3 bg-slate-950/90 p-3 rounded-lg border border-amber-500/40 shadow-inner"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="space-y-1">
-              <label className="text-[9px] uppercase tracking-tighter text-amber-400 font-bold">Cliente Orçado</label>
+        {/* Painel Principal Simplificado: Cliente + Valor */}
+        <div className="grid grid-cols-2 gap-2 p-2.5 bg-slate-950/60 rounded-lg border border-white/5 text-[10px] mb-2 font-mono">
+          {/* CLIENTE */}
+          <div>
+            <span className="text-slate-500 block uppercase font-bold text-[9px] mb-0.5">
+              CLIENTE
+            </span>
+            {editingField === 'customerName' ? (
               <input
                 type="text"
-                value={customerInput}
-                onChange={(e) => setCustomerInput(e.target.value)}
-                className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs w-full text-white focus:border-amber-500 outline-none"
-                placeholder="Nome do Cliente / Prospecção"
+                autoFocus
+                value={tempValue}
+                onChange={(e) => setTempValue(e.target.value)}
+                onBlur={() => saveEditing('customerName')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') saveEditing('customerName');
+                  if (e.key === 'Escape') setEditingField(null);
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-slate-900 border border-amber-500 rounded px-1 py-0.5 text-[10px] text-white focus:outline-none w-full"
               />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[9px] uppercase tracking-tighter text-amber-400 font-bold">Valor Proposto (R$)</label>
-              <input
-                type="number"
-                value={valueInput}
-                onChange={(e) => setValueInput(Number(e.target.value))}
-                className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs w-full text-white focus:border-amber-500 outline-none font-mono"
-              />
+            ) : (
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  startEditing('customerName', customerName);
+                }}
+                className="text-slate-200 font-semibold truncate block cursor-pointer hover:text-amber-300 hover:bg-amber-500/10 rounded px-1 -mx-1 transition-all"
+                title="Clique para editar o cliente"
+              >
+                {customerName}
+              </span>
+            )}
+          </div>
 
-              {/* OPÇÃO: OCULTAR O VALOR APENAS */}
-              <div className="pt-1">
-                <label className="flex items-center gap-2 cursor-pointer select-none text-[10px] font-bold text-amber-300 hover:text-amber-200 transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={isHideValueOnlyInput}
-                    onChange={(e) => setIsHideValueOnlyInput(e.target.checked)}
-                    className="w-3.5 h-3.5 rounded bg-slate-950 border-slate-600 text-amber-500 focus:ring-0 cursor-pointer"
-                  />
-                  <EyeOff className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                  <span>Ocultar o valor apenas</span>
-                </label>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[9px] uppercase tracking-tighter text-amber-400 font-bold">Validade da Proposta</label>
-              <input
-                type="date"
-                value={validUntilInput}
-                onChange={(e) => setValidUntilInput(e.target.value)}
-                className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs w-full text-white focus:border-amber-500 outline-none"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[9px] uppercase tracking-tighter text-amber-400 font-bold">Condições Comerciais</label>
+          {/* VALOR */}
+          <div>
+            <span className="text-slate-500 block uppercase font-bold text-[9px] mb-0.5">
+              VALOR PROPOSTO
+            </span>
+            {editingField === 'budgetValue' ? (
               <input
                 type="text"
-                value={paymentConditionInput}
-                onChange={(e) => setPaymentConditionInput(e.target.value)}
-                className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs w-full text-white focus:border-amber-500 outline-none"
-                placeholder="Ex: 30 DDL, Frete CIF"
+                autoFocus
+                value={tempValue}
+                onChange={(e) => setTempValue(e.target.value)}
+                onBlur={() => saveEditing('budgetValue')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') saveEditing('budgetValue');
+                  if (e.key === 'Escape') setEditingField(null);
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-slate-900 border border-amber-500 rounded px-1 py-0.5 text-[10px] text-amber-300 font-bold focus:outline-none w-full"
               />
-            </div>
-            <div className="flex gap-2 pt-1">
-              <button
+            ) : (
+              <span
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleDetailsSubmit();
+                  startEditing('budgetValue', String(budgetValue));
                 }}
-                className="flex-1 py-1.5 bg-amber-600 hover:bg-amber-500 text-slate-950 font-black rounded text-[10px] uppercase tracking-wider transition-colors"
+                className="text-amber-300 font-bold text-xs block cursor-pointer hover:bg-amber-500/10 rounded px-1 -mx-1 transition-all"
+                title="Clique para editar o valor"
               >
-                Salvar Orçamento
-              </button>
-              <button
+                {formattedValue}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Validade e Condições em linha única simples */}
+        <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 px-1 mb-2 gap-2">
+          {/* Validade */}
+          <div className="flex items-center gap-1 truncate">
+            <Calendar className="w-3 h-3 text-amber-400 shrink-0" />
+            <span>Validade:</span>
+            {editingField === 'validUntil' ? (
+              <input
+                type="text"
+                autoFocus
+                value={tempValue}
+                onChange={(e) => setTempValue(e.target.value)}
+                onBlur={() => saveEditing('validUntil')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') saveEditing('validUntil');
+                  if (e.key === 'Escape') setEditingField(null);
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-slate-900 border border-amber-500 rounded px-1 py-0.5 text-[10px] text-white focus:outline-none w-20"
+              />
+            ) : (
+              <span
                 onClick={(e) => {
                   e.stopPropagation();
-                  setIsEditingDetails(false);
+                  startEditing('validUntil', validUntil);
                 }}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px] font-bold transition-colors"
+                className="text-slate-200 font-semibold cursor-pointer hover:text-amber-300 hover:bg-amber-500/10 rounded px-1 transition-all"
+                title="Clique para editar data de validade"
               >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <p className="text-xs text-slate-400 mb-1.5 font-mono">
-              Cliente: <span className="text-slate-200 font-semibold">{customerName}</span>
-            </p>
-
-            {/* Valor do Orçamento em Destaque omitted per user request */}
-          </>
-        )}
-
-        {/* Box de Validade da Proposta Comercial */}
-        <div className={`mb-2 p-2 ${theme.badgeBg} border ${theme.badgeBorder} rounded-lg flex items-center justify-between`}>
-          <div className="flex items-center gap-1.5">
-            <Clock className={`w-3.5 h-3.5 ${theme.iconText} shrink-0`} />
-            <div>
-              <span className="text-[8px] uppercase tracking-wider text-slate-400 font-bold block leading-none">
-                Validade da Cotação
+                {validUntil.split('-').reverse().join('/')}
               </span>
-              <span className="text-[10px] font-mono text-slate-200 font-bold">
-                Até {validUntil.split('-').reverse().join('/')}
-              </span>
-            </div>
+            )}
           </div>
-          <span
-            className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border ${
-              diffDays > 5
-                ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-                : diffDays >= 0
-                ? `${theme.badgeBg} ${theme.badgeText} ${theme.badgeBorder}`
-                : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
-            }`}
-          >
-            {diffDays >= 0 ? `${diffDays}d restantes` : 'Expirado'}
-          </span>
+
+          {/* Condições */}
+          <div className="flex items-center gap-1 truncate">
+            <span>Cond:</span>
+            {editingField === 'paymentConditions' ? (
+              <input
+                type="text"
+                autoFocus
+                value={tempValue}
+                onChange={(e) => setTempValue(e.target.value)}
+                onBlur={() => saveEditing('paymentConditions')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') saveEditing('paymentConditions');
+                  if (e.key === 'Escape') setEditingField(null);
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-slate-900 border border-amber-500 rounded px-1 py-0.5 text-[10px] text-white focus:outline-none w-20"
+              />
+            ) : (
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  startEditing('paymentConditions', paymentConditions);
+                }}
+                className="text-slate-200 font-semibold cursor-pointer hover:text-amber-300 hover:bg-amber-500/10 rounded px-1 transition-all"
+                title="Clique para editar condições comerciais"
+              >
+                {paymentConditions}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col justify-end">
-        {/* Rastreio Ativo do Orçamento */}
-        <div className={`mb-2 px-2 py-1.5 ${theme.badgeBg} border ${theme.badgeBorder} rounded-md flex items-center justify-between`}>
-          <div className="flex flex-col">
-            <span className="text-[8px] uppercase tracking-tighter text-slate-400 font-bold leading-none">
-              Rastreio da Proposta
-            </span>
-            <span className={`text-[10px] font-mono ${theme.badgeText} font-bold`}>
-              #TRK-ORC-{node.id.slice(0, 5).toUpperCase()}
-            </span>
+      {/* Botão de Ação Direta Simplificado */}
+      <div className="pt-2 border-t border-white/5">
+        {isConverted ? (
+          <div className="w-full py-2 bg-emerald-500/15 border border-emerald-500/30 rounded-lg text-emerald-300 text-[11px] font-mono font-bold flex items-center justify-center gap-1.5 shadow-sm">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Aprovado & Convertido em Pedido</span>
           </div>
-          <span className={`px-1.5 py-0.5 rounded text-[8px] font-mono uppercase ${theme.badgeBg} ${theme.badgeText} border ${theme.badgeBorder} font-semibold`}>
-            {commercialStatus}
-          </span>
-        </div>
-
-        {/* Itens Orçados */}
-        <div className="space-y-1 my-1.5">
-          <div className="text-[9px] font-mono text-slate-400 uppercase font-semibold flex items-center justify-between">
-            <span>Itens Orçados</span>
-            <span className="text-[8px] text-slate-500">{itemsList.length} item(ns)</span>
-          </div>
-          {itemsList.slice(0, 2).map((item, idx) => (
-            <div
-              key={idx}
-              className={`flex items-center gap-1.5 text-[11px] text-slate-300 bg-slate-950/60 p-1.5 rounded border ${theme.badgeBorder}`}
-            >
-              <div className={`w-1.5 h-1.5 rounded-full ${theme.iconText} shrink-0`} />
-              <span className="truncate">{item}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Ação de Conversão Direta: Orçamento -> Pedido de Venda */}
-        <div className="my-1 space-y-1">
-          {isConverted ? (
-            <div className="w-full py-1.5 px-2 bg-emerald-500/15 border border-emerald-500/30 rounded-lg text-emerald-300 text-[10px] font-mono font-bold flex items-center justify-center gap-1.5">
-              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-              <span>Aprovado & Convertido</span>
-            </div>
-          ) : (
-            <div className="flex gap-1.5">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onUpdateData?.(node.id, { commercialStatus: 'Validado', status: 'Aprovado' });
-                }}
-                className="flex-1 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[9px] uppercase rounded transition-all"
-              >
-                Validado
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onUpdateData?.(node.id, { commercialStatus: 'Negado', status: 'Cancelado' });
-                }}
-                className="flex-1 py-1 bg-rose-600 hover:bg-rose-500 text-white font-black text-[9px] uppercase rounded transition-all"
-              >
-                Negado
-              </button>
-            </div>
-          )}
+        ) : (
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
-              onUpdateData?.(node.id, { commercialStatus: 'Aguardando Formalização', status: 'Em Andamento' });
+              onConvertToOrder?.(node.id);
             }}
-            className="w-full py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-[9px] uppercase rounded transition-all"
+            className="w-full py-2 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-extrabold text-xs rounded-lg transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
           >
-            Aguardando Formalização
+            <ArrowRight className="w-3.5 h-3.5 text-slate-950" />
+            <span>Aprovar & Converter em Pedido</span>
           </button>
-        </div>
-
-        {/* Footer */}
-        <div className={`pt-2 border-t ${theme.badgeBorder} flex items-center justify-between text-[10px] font-mono text-slate-400`}>
-          <div
-            className="flex items-center gap-1.5 cursor-pointer hover:text-slate-200 transition-colors py-0.5"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsEditingDetails(true);
-            }}
-          >
-            <Calendar className={`w-3 h-3 ${theme.iconText}`} />
-            <span>Cond: {node.data.paymentConditions || '30 DDL'}</span>
-          </div>
-          <div
-            className="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center text-[10px] text-slate-950 font-bold shadow-lg"
-            title={`Vendedor: ${node.assignee || 'Carlos'}`}
-          >
-            {node.assignee ? node.assignee[0] : 'C'}
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
