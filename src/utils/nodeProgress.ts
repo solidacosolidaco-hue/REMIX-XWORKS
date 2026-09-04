@@ -139,16 +139,9 @@ function getBaseNodeProgress(
       return d.currentValue ?? 0;
     }
 
-    case 'attachment': {
-      const attachments = d.attachments || [];
-      if (attachments.length > 0) {
-        const verified = attachments.filter((a: any) => a.checked).length;
-        return Math.round((verified / attachments.length) * 100);
-      }
-      if (typeof d.progressPercent === 'number') {
-        return Math.min(100, Math.max(0, d.progressPercent));
-      }
-      return d.currentValue ?? 0;
+    case 'attachment':
+    case 'document': {
+      return 0;
     }
 
     case 'kanban': {
@@ -417,7 +410,7 @@ export function isNodeBottleneck(
   allNodes: CanvasNode[],
   connections: Array<{ fromId: string; toId: string; animated?: boolean }>
 ): boolean {
-  if (node.type === 'text' || node.type === 'note' || node.type === 'group' || node.type === 'sector') return false;
+  if (['text', 'note', 'group', 'sector', 'document', 'attachment', 'customer'].includes(node.type)) return false;
 
   // 1. O nó atual não deve estar concluído
   const progress = calculateNodeProgress(node, allNodes, connections);

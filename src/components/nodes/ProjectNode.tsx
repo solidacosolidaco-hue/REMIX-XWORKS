@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { CanvasNode } from '../../types/canvas';
 import { FolderGit2, User } from 'lucide-react';
 import { NodeProgressBar } from '../common/NodeProgressBar';
-import { NodeTimeFrame } from '../common/NodeTimeFrame';
 
 interface ProjectNodeProps {
   node: CanvasNode;
@@ -80,9 +79,6 @@ export const ProjectNode: React.FC<ProjectNodeProps> = ({ node, onUpdateData, on
         <p className="text-xs text-slate-400 mb-2 font-mono">
           Cliente: {clientName}
         </p>
-
-        {/* Prazo Inicial e Prazo Final do Quadro */}
-        <NodeTimeFrame node={node} onUpdateData={onUpdateData} className="mb-2" />
 
         {/* Content Progress Bar */}
         <NodeProgressBar node={node} onUpdateData={onUpdateData} className="mb-2" />

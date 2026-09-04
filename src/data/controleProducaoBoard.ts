@@ -1,522 +1,1427 @@
 import { CanvasNode, Connection } from '../types/canvas';
 
 export const CONTROLE_PRODUCAO_NODES: CanvasNode[] = [
-  // ==========================================
-  // ÁREA 01: ENTRADA, SEPARAÇÃO & CORTE
-  // ==========================================
   {
-    id: 'grp-area-01',
-    type: 'group',
-    name: '01. Entrada, Separação & Corte de Materiais',
-    x: 50,
-    y: 50,
-    width: 900,
-    height: 860,
-    color: 'amber',
-    status: 'Em Produção',
-    createdAt: '2026-09-03',
-    updatedAt: '2026-09-03',
-    tags: ['entrada', 'corte', 'separação'],
-    data: {
-      description: 'Recepção de pedidos, corte a laser/plasma de chapas e separação de almoxarifado.',
-      groupColor: '#f59e0b',
-      groupIcon: 'Scissors',
+    "x": -728,
+    "y": -1267,
+    "id": "node-group-1788472576784",
+    "data": {
+      "groupIcon": "Layers",
+      "description": "Setor delimitado de processos"
     },
+    "name": "COMERCIAL",
+    "tags": [
+      "group"
+    ],
+    "type": "group",
+    "color": "blue",
+    "width": 1398,
+    "height": 1411,
+    "status": "A Fazer",
+    "createdAt": "01/09/2026",
+    "updatedAt": "01/09/2026"
   },
   {
-    id: 'node-cp-1',
-    type: 'order',
-    name: 'ALEMÃO TERRAPLANGEM — Cód 1884',
-    x: 90,
-    y: 150,
-    width: 390,
-    height: 210,
-    color: 'amber',
-    status: 'Em Produção',
-    createdAt: '2026-08-11',
-    updatedAt: '2026-09-03',
-    tags: ['Cód-1884', 'Separação'],
-    assignee: 'Equipe de Almoxarifado',
-    data: {
-      orderCode: '1884',
-      clientName: 'ALEMÃO TERRAPLANGEM',
-      orderStatus: 'Produto em separação',
-      deliveryDeadline: 'Em definição',
-      details: '• Produto: SR PRANCHA 6/3,2\n• Data Entrada: 11/08/2026\n• Status Atual: Produto em separação',
-      value: 0,
+    "x": 4147,
+    "y": -1374,
+    "id": "node-group-1788472649224",
+    "data": {
+      "groupIcon": "Layers",
+      "description": "Setor delimitado de processos"
     },
+    "name": "ENGENHARIA",
+    "tags": [
+      "group"
+    ],
+    "type": "group",
+    "color": "blue",
+    "width": 677,
+    "height": 2021,
+    "status": "A Fazer",
+    "createdAt": "01/09/2026",
+    "updatedAt": "01/09/2026"
   },
   {
-    id: 'node-cp-2',
-    type: 'order',
-    name: 'MAICON SELZER — Cód 1899',
-    x: 510,
-    y: 150,
-    width: 400,
-    height: 210,
-    color: 'amber',
-    status: 'Em Produção',
-    createdAt: '2026-08-05',
-    updatedAt: '2026-09-03',
-    tags: ['Cód-1899', 'Corte'],
-    assignee: 'Operador CNC Plasma',
-    data: {
-      orderCode: '1899',
-      clientName: 'MAICON SELZER',
-      orderStatus: 'Produto em corte',
-      deliveryDeadline: '05/09/2026',
-      details: '• Produto: PRACNHA FIXA 16 TON\n• Data Entrada: 05/08/2026\n• Previsão de Entrega: 05/09/2026\n• Status: Produto em corte',
-      value: 0,
+    "x": 1716,
+    "y": -1281,
+    "id": "node-group-1788472688375",
+    "data": {
+      "groupIcon": "Layers",
+      "description": "Setor delimitado de processos"
     },
+    "name": "PCP",
+    "tags": [
+      "group"
+    ],
+    "type": "group",
+    "color": "blue",
+    "width": 1261,
+    "height": 1993,
+    "status": "A Fazer",
+    "createdAt": "01/09/2026",
+    "updatedAt": "01/09/2026"
   },
   {
-    id: 'node-cp-3',
-    type: 'product',
-    name: 'Vinicius polleman — Cód 1924',
-    x: 90,
-    y: 380,
-    width: 390,
-    height: 210,
-    color: 'blue',
-    status: 'Em Produção',
-    createdAt: '2026-08-27',
-    updatedAt: '2026-09-03',
-    tags: ['Cód-1924', 'Alongador'],
-    assignee: 'PCP',
-    data: {
-      sku: '1924',
-      clientName: 'Vinicius polleman',
-      notes: '• Produto: Prancha fixa 25 ton\n• Obs: Com alongador\n• Data Entrada: 27/08/2026\n• Previsão de Entrega: 21/09/2026',
+    "x": 5526,
+    "y": -1427,
+    "id": "node-group-1788472896335",
+    "data": {
+      "groupIcon": "Layers",
+      "description": "Setor delimitado de processos"
     },
+    "name": "COMPRAS",
+    "tags": [
+      "group"
+    ],
+    "type": "group",
+    "color": "blue",
+    "width": 964,
+    "height": 1815,
+    "status": "A Fazer",
+    "createdAt": "01/09/2026",
+    "updatedAt": "01/09/2026"
   },
   {
-    id: 'node-cp-4',
-    type: 'product',
-    name: 'Julio cezar — Alongamento',
-    x: 510,
-    y: 380,
-    width: 400,
-    height: 210,
-    color: 'cyan',
-    status: 'Em Produção',
-    createdAt: '2026-09-02',
-    updatedAt: '2026-09-03',
-    tags: ['Entrada-02/09', 'Prancha'],
-    assignee: 'PCP',
-    data: {
-      clientName: 'Julio cezar',
-      notes: '• Produto: alongamenot prancha agricola\n• Data Entrada: 02/09/2026',
+    "x": 7442,
+    "y": -1483,
+    "id": "node-group-1788472914047",
+    "data": {
+      "groupIcon": "Layers",
+      "description": "Setor delimitado de processos"
     },
+    "name": "CORTE E DOBRA",
+    "tags": [
+      "group"
+    ],
+    "type": "group",
+    "color": "blue",
+    "width": 857,
+    "height": 1975,
+    "status": "A Fazer",
+    "createdAt": "01/09/2026",
+    "updatedAt": "01/09/2026"
   },
   {
-    id: 'node-cp-5',
-    type: 'note',
-    name: 'ESTOQUE — Pátio de Preparação',
-    x: 90,
-    y: 610,
-    width: 820,
-    height: 260,
-    color: 'slate',
-    status: 'Em Produção',
-    createdAt: '2026-09-03',
-    updatedAt: '2026-09-03',
-    tags: ['Estoque', 'Preparação'],
-    assignee: 'Almoxarifado Geral',
-    data: {
-      noteText: '📋 ITENS DE ESTOQUE EM PREPARAÇÃO:\n\n• Cód 1921 — Julieta Carrega tudo (Cliente: Estoque)\n• Cód 327 — SR EXPANCIVEL AGRICOLA (Obs: 12M)\n• Cód 306 — SR EXPANCIVEL AGRICOLA (Obs: 12M)',
-      isWarning: false,
+    "x": 9231,
+    "y": -1508,
+    "id": "node-group-1788472935696",
+    "data": {
+      "groupIcon": "Layers",
+      "description": "Setor delimitado de processos"
     },
-  },
-
-  // ==========================================
-  // ÁREA 02: CALDEIRARIA & MONTAGEM ESTRUTURAL
-  // ==========================================
-  {
-    id: 'grp-area-02',
-    type: 'group',
-    name: '02. Caldeiraria & Montagem de Chassi',
-    x: 1000,
-    y: 50,
-    width: 900,
-    height: 860,
-    color: 'rose',
-    status: 'Alerta',
-    createdAt: '2026-09-03',
-    updatedAt: '2026-09-03',
-    tags: ['caldeiraria', 'montagem', 'solda'],
-    data: {
-      description: 'Montagem mecânica de eixos, ponteamento de chassis e soldagem pesada.',
-      groupColor: '#f43f5e',
-      groupIcon: 'Wrench',
-    },
+    "name": "USINAGEM",
+    "tags": [
+      "group"
+    ],
+    "type": "group",
+    "color": "blue",
+    "width": 778,
+    "height": 1994,
+    "status": "A Fazer",
+    "createdAt": "01/09/2026",
+    "updatedAt": "01/09/2026"
   },
   {
-    id: 'node-cp-6',
-    type: 'order',
-    name: 'SCHEMAQ — Cód 266 (TRAILER)',
-    x: 1040,
-    y: 150,
-    width: 820,
-    height: 250,
-    color: 'rose',
-    status: 'Atrasado',
-    createdAt: '2026-08-01',
-    updatedAt: '2026-09-03',
-    tags: ['#CRÍTICO', '10-DIAS-ATRASO', 'SCHEMAQ'],
-    assignee: 'Eng. Chefe de Produção',
-    data: {
-      orderCode: '266',
-      clientName: 'SCHEMAQ',
-      orderStatus: 'Atrasado',
-      deliveryDeadline: '24/08/2026',
-      details: '🚨 ATENÇÃO CRÍTICA DO PCP: 10 DIAS DE ATRASO!\n\n• Produto: TRAILER\n• Status Atual: Montagem\n• Previsão de Entrega: 24/08/2026 (Excedido em 10 dias)\n• Ação: Prioridade Máxima na bancada de caldeiraria!',
-      value: 0,
+    "x": 10686,
+    "y": -1565,
+    "id": "node-group-1788472965431",
+    "data": {
+      "groupIcon": "Layers",
+      "description": "Setor delimitado de processos"
     },
+    "name": "SERRA FITA",
+    "tags": [
+      "group"
+    ],
+    "type": "group",
+    "color": "blue",
+    "width": 750,
+    "height": 2049,
+    "status": "A Fazer",
+    "createdAt": "01/09/2026",
+    "updatedAt": "01/09/2026"
   },
   {
-    id: 'node-cp-7',
-    type: 'order',
-    name: 'PREFEITURA DE FLOR DO SERTÃO — Cód 350',
-    x: 1040,
-    y: 420,
-    width: 390,
-    height: 210,
-    color: 'blue',
-    status: 'Em Produção',
-    createdAt: '2026-08-15',
-    updatedAt: '2026-09-03',
-    tags: ['Cód-350', 'Caçamba'],
-    assignee: 'Equipe de Caldeiraria',
-    data: {
-      orderCode: '350',
-      clientName: 'PREFEITURA DE FLOR DO SERTÃO',
-      orderStatus: 'Montagem',
-      details: '• Produto: CAÇAMBA\n• Status Atual: Montagem\n• Destino: Frota Municipal',
-      value: 0,
+    "x": 12446,
+    "y": -1470,
+    "id": "node-group-1788472991703",
+    "data": {
+      "groupIcon": "Layers",
+      "description": "Setor delimitado de processos"
     },
+    "name": "FINANCEIRO",
+    "tags": [
+      "group"
+    ],
+    "type": "group",
+    "color": "blue",
+    "width": 973,
+    "height": 2022,
+    "status": "A Fazer",
+    "createdAt": "01/09/2026",
+    "updatedAt": "01/09/2026"
   },
   {
-    id: 'node-cp-8',
-    type: 'order',
-    name: 'RS SERVIÇOS — Cód 354',
-    x: 1460,
-    y: 420,
-    width: 400,
-    height: 210,
-    color: 'blue',
-    status: 'Em Produção',
-    createdAt: '2026-08-18',
-    updatedAt: '2026-09-03',
-    tags: ['Cód-354', 'Forrageira'],
-    assignee: 'Equipe de Montagem',
-    data: {
-      orderCode: '354',
-      clientName: 'RS SERVIÇOS',
-      orderStatus: 'Montagem',
-      details: '• Produto: JULIETA PLATAFORMA FORRAGEIRA\n• Status Atual: Montagem',
-      value: 0,
-    },
-  },
-  {
-    id: 'node-cp-9',
-    type: 'checklist',
-    name: 'Roteiro e Inspeção de Caldeiraria',
-    x: 1040,
-    y: 650,
-    width: 820,
-    height: 220,
-    color: 'rose',
-    status: 'Em Andamento',
-    createdAt: '2026-09-03',
-    updatedAt: '2026-09-03',
-    tags: ['Qualidade', 'Solda'],
-    assignee: 'Inspetor de Solda',
-    data: {
-      items: [
-        { id: 'chk-1', text: 'SCHEMAQ (Cód 266): Finalizar caldeiraria e estrutura do Trailer (Urgente)', checked: false, assignee: 'Caldeireiro Principal' },
-        { id: 'chk-2', text: 'PREFEITURA FLOR DO SERTÃO (Cód 350): Montagem da caçamba basculante', checked: true, assignee: 'Equipe A' },
-        { id: 'chk-3', text: 'RS SERVIÇOS (Cód 354): Ajuste de travas e eixos da plataforma forrageira', checked: false, assignee: 'Equipe B' },
+    "x": 240,
+    "y": -1083,
+    "id": "node-budget-1788473070448",
+    "data": {
+      "status": "Aprovado",
+      "content": "Clique duas vezes para editar o texto...",
+      "dueDate": "2026-09-20",
+      "deadline": "2026-09-20",
+      "hideValue": false,
+      "issueDate": "2026-08-25",
+      "itemsList": [
+        "Estrutura metálica usinada em viga W250 com furações CNC",
+        "Sistema hidráulico de acionamento 350 bar com manifold integrado",
+        "Pintura eletrostática epóxi espessura mínima 180 micras - Cor RAL 5010"
       ],
+      "orderType": "order",
+      "startDate": "2026-09-01",
+      "taxAmount": 13300,
+      "enableGlow": true,
+      "orderItems": [
+        {
+          "id": "item-1",
+          "code": "EST-4401",
+          "unit": "CJ",
+          "taxRate": 5,
+          "quantity": 4,
+          "subtotal": 130000,
+          "unitPrice": 32500,
+          "description": "Estrutura metálica usinada em viga W250 com furações CNC"
+        },
+        {
+          "id": "item-2",
+          "code": "HID-8802",
+          "unit": "UN",
+          "taxRate": 8,
+          "quantity": 2,
+          "subtotal": 85000,
+          "unitPrice": 42500,
+          "description": "Sistema hidráulico de acionamento 350 bar com manifold integrado"
+        },
+        {
+          "id": "item-3",
+          "code": "PIN-009",
+          "unit": "LOT",
+          "taxRate": 0,
+          "quantity": 1,
+          "subtotal": 35000,
+          "unitPrice": 35000,
+          "description": "Pintura eletrostática epóxi espessura mínima 180 micras - Cor RAL 5010"
+        }
+      ],
+      "orderValue": 263100,
+      "carrierName": "Jamef Encomendas Urgentes",
+      "contactName": "Renata Valente",
+      "budgetNumber": "ORC-2026-8821",
+      "contactEmail": "renata.valente@empresaabc.com.br",
+      "contactPhone": "(11) 98765-4321",
+      "customerCnpj": "12.345.678/0001-90",
+      "customerName": "Novo Cliente",
+      "shippingCost": 4800,
+      "shippingType": "CIF",
+      "withoutValue": false,
+      "hideValueOnly": false,
+      "itemsSubtotal": 250000,
+      "orderProgress": 0,
+      "paymentMethod": "Boleto Bancário Faturado",
+      "discountAmount": 5000,
+      "commercialNotes": "Exigido certificado de matéria-prima e ensaio por ultrassom das soldas conforme AWS D1.1.",
+      "descriptiveOnly": false,
+      "totalOrderValue": 263100,
+      "commercialStatus": "Pedido de Venda Confirmado",
+      "deliveryDeadline": "2026-09-20",
+      "deliveryLocation": "Av. das Indústrias, 1500 - Galpão 4, São Paulo - SP",
+      "descriptiveNotes": "",
+      "salesOrderNumber": "PV-4498",
+      "clientOrderNumber": "OC-90214/26",
+      "paymentConditions": "28/56 DDL após emissão da NF-e",
+      "connectionPointsPerSide": 3
     },
-  },
-
-  // ==========================================
-  // ÁREA 03: SETOR DE PINTURA & ACABAMENTO
-  // ==========================================
-  {
-    id: 'grp-area-03',
-    type: 'group',
-    name: '03. Setor de Pintura & Acabamento',
-    x: 50,
-    y: 950,
-    width: 900,
-    height: 920,
-    color: 'purple',
-    status: 'Em Produção',
-    createdAt: '2026-09-03',
-    updatedAt: '2026-09-03',
-    tags: ['pintura', 'epóxi', 'cabine'],
-    data: {
-      description: 'Preparação de superfície, fundo wash primer e aplicação de tinta de alta resistência.',
-      groupColor: '#a855f7',
-      groupIcon: 'Paintbrush',
-    },
-  },
-  {
-    id: 'node-cp-10',
-    type: 'product',
-    name: 'BLOCH ESCAVAÇÕES — Cód 311',
-    x: 90,
-    y: 1050,
-    width: 390,
-    height: 220,
-    color: 'purple',
-    status: 'Em Produção',
-    createdAt: '2026-08-20',
-    updatedAt: '2026-09-03',
-    tags: ['Cód-311', 'Pintura'],
-    assignee: 'Pintor Líder',
-    data: {
-      sku: '311',
-      clientName: 'BLOCH ESCAVAÇÕES E COLHEITAS LTDA',
-      notes: '• Produto: REBOQUE 45 PÉS 03 EIXO\n• Status Atual: Pintura\n• Tipo de Fundo: Primer Epóxi',
-    },
-  },
-  {
-    id: 'node-cp-11',
-    type: 'product',
-    name: 'GUINCHO LEO COROMANDEL — Cód 317',
-    x: 510,
-    y: 1050,
-    width: 400,
-    height: 220,
-    color: 'purple',
-    status: 'Em Produção',
-    createdAt: '2026-08-20',
-    updatedAt: '2026-09-03',
-    tags: ['Cód-317', 'Pintura'],
-    assignee: 'Pintor Líder',
-    data: {
-      sku: '317',
-      clientName: 'GUINCHO AUTOSOCORRO LEO COROMANDEL LTDA',
-      notes: '• Produto: REBOQUE 45 PÉS 02 EIXO\n• Status Atual: Pintura',
-    },
-  },
-  {
-    id: 'node-cp-12',
-    type: 'product',
-    name: 'TECNOMACHINE LOCAÇÃO — Cód 321',
-    x: 90,
-    y: 1290,
-    width: 390,
-    height: 220,
-    color: 'purple',
-    status: 'Em Produção',
-    createdAt: '2026-08-21',
-    updatedAt: '2026-09-03',
-    tags: ['Cód-321', 'Pintura'],
-    assignee: 'Cabine 2',
-    data: {
-      sku: '321',
-      clientName: 'TECNOMACHINE LOCAÇÃO',
-      notes: '• Produto: SEMIRREBOQUE 16200X3200\n• Status Atual: Pintura',
-    },
+    "name": "Pedido #PV-4498 - Empresa ABC S/A",
+    "tags": [
+      "budget"
+    ],
+    "type": "order",
+    "color": "emerald",
+    "width": 280,
+    "height": 180,
+    "status": "Em Produção",
+    "createdAt": "01/09/2026",
+    "updatedAt": "2026-09-03T22:04:53.672Z"
   },
   {
-    id: 'node-cp-13',
-    type: 'product',
-    name: 'JULIANO WENSEL — Cód 351',
-    x: 510,
-    y: 1290,
-    width: 400,
-    height: 220,
-    color: 'purple',
-    status: 'Em Produção',
-    createdAt: '2026-08-22',
-    updatedAt: '2026-09-03',
-    tags: ['Cód-351', 'Pintura'],
-    assignee: 'Cabine 1',
-    data: {
-      sku: '351',
-      clientName: 'JULIANO WENSEL',
-      notes: '• Produto: PRANCHA FIXA\n• Status Atual: Pintura',
+    "x": 1755,
+    "y": -1090,
+    "id": "node-production_order-1788473130600",
+    "data": {
+      "deadline": "2026-09-15",
+      "opNumber": "OP-3233",
+      "priority": "Normal",
+      "refOrder": "#91417",
+      "currentValue": 100,
+      "orderProgress": 100,
+      "progressPercent": 100,
+      "projectProgress": 100
     },
+    "name": "Ordem de Produção",
+    "tags": [
+      "production_order"
+    ],
+    "type": "production_order",
+    "color": "amber",
+    "width": 320,
+    "height": 350,
+    "status": "A Fazer",
+    "createdAt": "01/09/2026",
+    "updatedAt": "01/09/2026"
   },
   {
-    id: 'node-cp-14',
-    type: 'product',
-    name: 'FRIGORIFICO EL GOLLI — Cód 353',
-    x: 90,
-    y: 1530,
-    width: 390,
-    height: 220,
-    color: 'purple',
-    status: 'Em Produção',
-    createdAt: '2026-08-23',
-    updatedAt: '2026-09-03',
-    tags: ['Cód-353', 'Pintura'],
-    assignee: 'Cabine 2',
-    data: {
-      sku: '353',
-      clientName: 'FRIGORIFICO EL GOLLI',
-      notes: '• Produto: JULIETA BASCULANTE\n• Status Atual: Pintura',
+    "x": 2133,
+    "y": -1003,
+    "id": "node-production_route-1788473137087",
+    "data": {
+      "steps": [
+        {
+          "id": "step-10",
+          "name": "Corte e Preparação de Tarugo SAE 4340",
+          "status": "Concluído",
+          "deadline": "2026-09-04",
+          "operator": "Marcos Silva (RE-204)",
+          "sequence": 10,
+          "startDate": "2026-09-02",
+          "estimatedHours": 4,
+          "machineOrWorkcenter": "Serra Fita Automática S-320"
+        },
+        {
+          "id": "step-20",
+          "name": "Torneamento CNC e Desbaste Pesado",
+          "status": "Em Andamento",
+          "deadline": "2026-09-09",
+          "operator": "Carlos Eduardo (RE-118)",
+          "sequence": 20,
+          "startDate": "2026-09-05",
+          "estimatedHours": 12,
+          "machineOrWorkcenter": "Torno CNC Romi GL-240"
+        },
+        {
+          "id": "step-30",
+          "name": "Fresamento de Canais e Rasgos de Chaveta",
+          "status": "Pendente",
+          "deadline": "2026-09-14",
+          "operator": "André Luiz (RE-305)",
+          "sequence": 30,
+          "startDate": "2026-09-10",
+          "estimatedHours": 8,
+          "machineOrWorkcenter": "Centro de Usinagem 4 Eixos Haas"
+        },
+        {
+          "id": "step-40",
+          "name": "Tratamento Térmico por Indução & Retífica",
+          "status": "Pendente",
+          "deadline": "2026-09-18",
+          "operator": "Eng. Roberto (RE-102)",
+          "sequence": 40,
+          "startDate": "2026-09-15",
+          "estimatedHours": 10,
+          "machineOrWorkcenter": "Forno de Têmpera / Retífica Cilíndrica"
+        },
+        {
+          "id": "step-50",
+          "name": "Inspeção Dimensional & Controle de Qualidade (CQ)",
+          "status": "Pendente",
+          "deadline": "2026-09-22",
+          "operator": "Inspetor Qualidade CQ",
+          "sequence": 50,
+          "startDate": "2026-09-19",
+          "estimatedHours": 4,
+          "machineOrWorkcenter": "Laboratório Metrológico 3D Tridimensional"
+        }
+      ],
+      "dueDate": "2026-09-22",
+      "routeCode": "ROT-2026-11",
+      "startDate": "2026-09-02",
+      "productTarget": "Eixo de Transmissão 50HP",
+      "overallRouteProgress": 40,
+      "connectionPointsPerSide": 5
     },
+    "name": "Roteiro de Produção: Usinagem & Montagem",
+    "tags": [
+      "production_route"
+    ],
+    "type": "production_route",
+    "color": "cyan",
+    "width": 360,
+    "height": 460,
+    "status": "A Fazer",
+    "createdAt": "01/09/2026",
+    "updatedAt": "01/09/2026"
   },
   {
-    id: 'node-cp-15',
-    type: 'product',
-    name: 'GUSTAVO CALEGARI — Cód 329',
-    x: 510,
-    y: 1530,
-    width: 400,
-    height: 220,
-    color: 'purple',
-    status: 'Em Produção',
-    createdAt: '2026-08-24',
-    updatedAt: '2026-09-03',
-    tags: ['Cód-329', 'Pintura'],
-    assignee: 'Cabine 1',
-    data: {
-      sku: '329',
-      clientName: 'GUSTAVO PREVEDELLO CALEGARI',
-      notes: '• Produto: PRANCHA AGRICOLA 11500\n• Status Atual: Pintura',
+    "x": 2557,
+    "y": -998,
+    "id": "node-attachment-1788473350184",
+    "data": {
+      "dueDate": "2026-09-20",
+      "deadline": "2026-09-20",
+      "startDate": "2026-09-01",
+      "attachments": [
+        {
+          "id": "att-1",
+          "url": "https://drive.google.com/file/d/sample-cad",
+          "name": "Desenho Técnico (CAD)",
+          "type": "cad",
+          "checked": true
+        },
+        {
+          "id": "att-2",
+          "url": "https://drive.google.com/file/d/sample-pdf",
+          "name": "Especificação Técnica PDF",
+          "type": "pdf",
+          "checked": true
+        },
+        {
+          "id": "att-3",
+          "url": "https://docs.google.com/spreadsheets/d/sample-sheet",
+          "name": "Planilha de Custo / Orçamento",
+          "type": "doc",
+          "checked": true
+        }
+      ],
+      "currentValue": 100,
+      "orderProgress": 0,
+      "progressPercent": 100,
+      "projectProgress": 0,
+      "deliveryDeadline": "2026-09-20"
     },
-  },
-
-  // ==========================================
-  // ÁREA 04: MONTAGEM FINAL & EXPEDIÇÃO
-  // ==========================================
-  {
-    id: 'grp-area-04',
-    type: 'group',
-    name: '04. Montagem Final & Preparação p/ Entrega',
-    x: 1000,
-    y: 950,
-    width: 900,
-    height: 920,
-    color: 'emerald',
-    status: 'Aprovado',
-    createdAt: '2026-09-03',
-    updatedAt: '2026-09-03',
-    tags: ['expedição', 'montagem-final', 'liberado'],
-    data: {
-      description: 'Montagem do sistema elétrico, faixas refletivas, testes de freio e expedição.',
-      groupColor: '#10b981',
-      groupIcon: 'CheckCircle',
-    },
-  },
-  {
-    id: 'node-cp-16',
-    type: 'order',
-    name: 'FSF TECNOLOGIA S.A. (Lote de 5 Pranchas)',
-    x: 1040,
-    y: 1050,
-    width: 820,
-    height: 270,
-    color: 'emerald',
-    status: 'Em Produção',
-    createdAt: '2026-08-10',
-    updatedAt: '2026-09-03',
-    tags: ['Lote-5x', 'FSF-TECNOLOGIA', 'Montagem-Final'],
-    assignee: 'Mestre da Montagem Final',
-    data: {
-      clientName: 'FSF TECNOLOGIA S.A.',
-      orderCode: 'LOTE-FSF-289-293',
-      orderProgress: 95,
-      orderStatus: 'Montagem final',
-      details: '📦 LOTE DE 5 UNIDADES DE PRANCHA FIXA (EM MONTAGEM FINAL):\n\n• Cód 289 — Prancha fixa (Montagem final)\n• Cód 290 — Prancha fixa (Montagem final)\n• Cód 291 — Prancha fixa (Montagem final)\n• Cód 292 — Prancha fixa (Montagem final)\n• Cód 293 — Prancha fixa (Montagem final)',
-      value: 0,
-    },
+    "name": "Central de Anexos & URLs",
+    "tags": [
+      "attachment"
+    ],
+    "type": "attachment",
+    "color": "blue",
+    "width": 350,
+    "height": 340,
+    "status": "A Fazer",
+    "createdAt": "01/09/2026",
+    "updatedAt": "01/09/2026"
   },
   {
-    id: 'node-cp-17',
-    type: 'product',
-    name: 'BLOCH ESCAVAÇÕES — Cód 309',
-    x: 1040,
-    y: 1340,
-    width: 390,
-    height: 220,
-    color: 'emerald',
-    status: 'Concluído',
-    createdAt: '2026-08-15',
-    updatedAt: '2026-09-03',
-    tags: ['Cód-309', '12M', 'Montagem-Final'],
-    assignee: 'Equipe de Inspeção',
-    data: {
-      sku: '309',
-      clientName: 'BLOCH ESCAVAÇÕES E COLHEITAS LTDA',
-      notes: '• Produto: SR EXPANCIVEL AGRICOLA\n• Obs: 12M\n• Status: Montagem final',
+    "x": 1027,
+    "y": -769,
+    "id": "node-document-1788473366216",
+    "data": {
+      "docType": "PDF",
+      "fileSize": "4.2 MB",
+      "docVersion": "v1.0",
+      "description": "Documento contendo especificações técnicas e requisitos normativos."
     },
+    "name": "Especificação Técnica",
+    "tags": [
+      "document"
+    ],
+    "type": "document",
+    "color": "blue",
+    "width": 300,
+    "height": 200,
+    "status": "A Fazer",
+    "createdAt": "01/09/2026",
+    "updatedAt": "01/09/2026"
   },
   {
-    id: 'node-cp-18',
-    type: 'product',
-    name: 'GUINCHO LEO COROMANDEL — Cód 316',
-    x: 1460,
-    y: 1340,
-    width: 400,
-    height: 220,
-    color: 'emerald',
-    status: 'Concluído',
-    createdAt: '2026-08-16',
-    updatedAt: '2026-09-03',
-    tags: ['Cód-316', 'Montagem-Final'],
-    assignee: 'Equipe de Inspeção',
-    data: {
-      sku: '316',
-      clientName: 'GUINCHO AUTOSOCORRO LEO COROMANDEL LTDA',
-      notes: '• Produto: PRANCHA AGRÍCOLA 870 X 11000\n• Status: Montagem final',
+    "x": 4310,
+    "y": -1116,
+    "id": "node-project-1788473609495",
+    "data": {
+      "dueDate": "2026-09-20",
+      "deadline": "2026-09-20",
+      "startDate": "2026-09-01",
+      "clientName": "Cliente Associado",
+      "subModules": [
+        "Modelagem 3D",
+        "Elétrica e Automação",
+        "Testes"
+      ],
+      "projectCode": "PX-2026",
+      "currentValue": 100,
+      "orderProgress": 100,
+      "progressPercent": 100,
+      "projectProgress": 100,
+      "deliveryDeadline": "2026-09-20"
     },
+    "name": "Projeto PX-555",
+    "tags": [
+      "project"
+    ],
+    "type": "project",
+    "color": "blue",
+    "width": 340,
+    "height": 280,
+    "status": "A Fazer",
+    "createdAt": "01/09/2026",
+    "updatedAt": "01/09/2026"
   },
   {
-    id: 'node-cp-19',
-    type: 'financial_module',
-    name: 'Resumo Executivo do Controle de Produção',
-    x: 1040,
-    y: 1580,
-    width: 820,
-    height: 240,
-    color: 'emerald',
-    status: 'Aprovado',
-    createdAt: '2026-09-03',
-    updatedAt: '2026-09-03',
-    tags: ['KPI', 'Chão-de-Fábrica'],
-    data: {
-      totalRevenue: '23 Pedidos Transcritos',
-      notes: '📊 PAINEL DE CONTROLE DE PRODUÇÃO:\n\n• Montagem Final: 7 itens (FSF 5x + Bloch 309 + Guincho 316)\n• Setor de Pintura: 6 itens (Bloch 311, Guincho 317, Tecnomachine, Juliano, Frigorífico, Gustavo)\n• Montagem / Caldeiraria: 3 itens (SCHEMAQ, Prefeitura, RS Serviços)\n• Separação / Corte: 4 itens (Alemão, Maicon, Vinícius, Julio)\n• Estoque em Preparação: 3 itens (Códs 1921, 327, 306)\n\n⚠️ ALERTA DE ATRASO: 1 Pedido Excedido (SCHEMAQ Cód 266 - 10 Dias de Atraso)',
+    "x": 3448,
+    "y": -1417,
+    "id": "node-document-1788473622695",
+    "data": {
+      "docType": "PDF",
+      "fileSize": "4.2 MB",
+      "docVersion": "v1.0",
+      "description": "Documento contendo especificações técnicas e requisitos normativos."
     },
+    "name": "Especificação Técnica",
+    "tags": [
+      "document"
+    ],
+    "type": "document",
+    "color": "blue",
+    "width": 300,
+    "height": 200,
+    "status": "A Fazer",
+    "createdAt": "01/09/2026",
+    "updatedAt": "01/09/2026"
   },
+  {
+    "x": 4961,
+    "y": -1301,
+    "id": "node-attachment-1788473695832",
+    "data": {
+      "attachments": [
+        {
+          "id": "att-1",
+          "url": "https://drive.google.com/file/d/sample-cad",
+          "name": "Desenho Técnico (CAD)",
+          "type": "cad",
+          "checked": true
+        },
+        {
+          "id": "att-2",
+          "url": "https://drive.google.com/file/d/sample-pdf",
+          "name": "Especificação Técnica PDF",
+          "type": "pdf",
+          "checked": true
+        },
+        {
+          "id": "att-3",
+          "url": "https://docs.google.com/spreadsheets/d/sample-sheet",
+          "name": "Planilha de Custo / Orçamento",
+          "type": "doc",
+          "checked": true
+        }
+      ],
+      "currentValue": 100,
+      "progressPercent": 100
+    },
+    "name": "Central de Anexos & URLs",
+    "tags": [
+      "attachment"
+    ],
+    "type": "attachment",
+    "color": "blue",
+    "width": 350,
+    "height": 340,
+    "status": "A Fazer",
+    "createdAt": "01/09/2026",
+    "updatedAt": "01/09/2026"
+  },
+  {
+    "x": 5666,
+    "y": -1108,
+    "id": "node-kanban-1788473881768",
+    "data": {
+      "cards": [
+        {
+          "id": "c1",
+          "title": "Elaborar plano de montagem",
+          "columnId": "col-todo",
+          "priority": "alta"
+        },
+        {
+          "id": "c2",
+          "title": "Comprar componentes de reposição",
+          "columnId": "col-in-progress",
+          "priority": "media"
+        }
+      ],
+      "columns": [
+        {
+          "id": "col-todo",
+          "color": "#64748b",
+          "title": "A FAZER"
+        },
+        {
+          "id": "col-in-progress",
+          "color": "#3b82f6",
+          "title": "EM ANDAMENTO"
+        },
+        {
+          "id": "col-done",
+          "color": "#10b981",
+          "title": "CONCLUÍDO"
+        }
+      ]
+    },
+    "name": "Fluxo de Tarefas",
+    "tags": [
+      "kanban"
+    ],
+    "type": "kanban",
+    "color": "blue",
+    "width": 620,
+    "height": 360,
+    "status": "A Fazer",
+    "createdAt": "01/09/2026",
+    "updatedAt": "01/09/2026"
+  },
+  {
+    "x": 6809,
+    "y": -1309,
+    "id": "node-attachment-1788473994752-0-919",
+    "data": {
+      "dueDate": "2026-09-20",
+      "deadline": "2026-09-20",
+      "startDate": "2026-09-01",
+      "attachments": [
+        {
+          "id": "att-1",
+          "url": "https://drive.google.com/file/d/sample-cad",
+          "name": "Desenho Técnico (CAD)",
+          "type": "cad",
+          "checked": true
+        },
+        {
+          "id": "att-2",
+          "url": "https://drive.google.com/file/d/sample-pdf",
+          "name": "Especificação Técnica PDF",
+          "type": "pdf",
+          "checked": true
+        },
+        {
+          "id": "att-3",
+          "url": "https://docs.google.com/spreadsheets/d/sample-sheet",
+          "name": "Planilha de Custo / Orçamento",
+          "type": "doc",
+          "checked": false
+        }
+      ],
+      "deliveryDeadline": "2026-09-20"
+    },
+    "name": "Central de Anexos & URLs (Cópia)",
+    "tags": [
+      "attachment"
+    ],
+    "type": "attachment",
+    "color": "blue",
+    "width": 350,
+    "height": 340,
+    "locked": false,
+    "status": "A Fazer",
+    "createdAt": "03/09/2026",
+    "updatedAt": "03/09/2026"
+  },
+  {
+    "x": 7545,
+    "y": -1223,
+    "id": "node-kanban-1788474012039-0-776",
+    "data": {
+      "cards": [
+        {
+          "id": "c1",
+          "title": "Elaborar plano de montagem",
+          "columnId": "col-done",
+          "priority": "alta"
+        },
+        {
+          "id": "c2",
+          "title": "Comprar componentes de reposição",
+          "columnId": "col-done",
+          "priority": "media"
+        }
+      ],
+      "columns": [
+        {
+          "id": "col-todo",
+          "color": "#64748b",
+          "title": "A FAZER"
+        },
+        {
+          "id": "col-in-progress",
+          "color": "#3b82f6",
+          "title": "EM ANDAMENTO"
+        },
+        {
+          "id": "col-done",
+          "color": "#10b981",
+          "title": "CONCLUÍDO"
+        }
+      ],
+      "currentValue": 100,
+      "progressPercent": 100
+    },
+    "name": "Fluxo de Tarefas (Cópia)",
+    "tags": [
+      "kanban"
+    ],
+    "type": "kanban",
+    "color": "blue",
+    "width": 620,
+    "height": 360,
+    "locked": false,
+    "status": "A Fazer",
+    "createdAt": "03/09/2026",
+    "updatedAt": "03/09/2026"
+  },
+  {
+    "x": -703,
+    "y": -1028,
+    "id": "node-customer-1788474199479",
+    "data": {
+      "cnpj": "12.345.678/0001-90",
+      "email": "contato@novocliente.com",
+      "phone": "(11) 98765-4321",
+      "address": "São Paulo - SP",
+      "contactName": "Diretor Comercial",
+      "ordersCount": 1,
+      "totalRevenue": "R$ 100.000",
+      "projectsCount": 1
+    },
+    "name": "Novo Cliente",
+    "tags": [
+      "customer"
+    ],
+    "type": "customer",
+    "color": "blue",
+    "width": 320,
+    "height": 220,
+    "status": "A Fazer",
+    "createdAt": "01/09/2026",
+    "updatedAt": "01/09/2026"
+  },
+  {
+    "x": 8577,
+    "y": -1501,
+    "id": "node-attachment-1788474288087-0-542",
+    "data": {
+      "dueDate": "2026-09-20",
+      "deadline": "2026-09-20",
+      "startDate": "2026-09-01",
+      "attachments": [
+        {
+          "id": "att-1",
+          "url": "https://drive.google.com/file/d/sample-cad",
+          "name": "Desenho Técnico (CAD)",
+          "type": "cad",
+          "checked": true
+        },
+        {
+          "id": "att-2",
+          "url": "https://drive.google.com/file/d/sample-pdf",
+          "name": "Especificação Técnica PDF",
+          "type": "pdf",
+          "checked": true
+        },
+        {
+          "id": "att-3",
+          "url": "https://docs.google.com/spreadsheets/d/sample-sheet",
+          "name": "Planilha de Custo / Orçamento",
+          "type": "doc",
+          "checked": false
+        }
+      ],
+      "deliveryDeadline": "2026-09-20"
+    },
+    "name": "Central de Anexos & URLs (Cópia) (Cópia)",
+    "tags": [
+      "attachment"
+    ],
+    "type": "attachment",
+    "color": "blue",
+    "width": 350,
+    "height": 340,
+    "locked": false,
+    "status": "A Fazer",
+    "createdAt": "03/09/2026",
+    "updatedAt": "03/09/2026"
+  },
+  {
+    "x": 10168,
+    "y": -1522,
+    "id": "node-attachment-1788474296127-0-963",
+    "data": {
+      "dueDate": "2026-09-20",
+      "deadline": "2026-09-20",
+      "startDate": "2026-09-01",
+      "attachments": [
+        {
+          "id": "att-1",
+          "url": "https://drive.google.com/file/d/sample-cad",
+          "name": "Desenho Técnico (CAD)",
+          "type": "cad",
+          "checked": true
+        },
+        {
+          "id": "att-2",
+          "url": "https://drive.google.com/file/d/sample-pdf",
+          "name": "Especificação Técnica PDF",
+          "type": "pdf",
+          "checked": true
+        },
+        {
+          "id": "att-3",
+          "url": "https://docs.google.com/spreadsheets/d/sample-sheet",
+          "name": "Planilha de Custo / Orçamento",
+          "type": "doc",
+          "checked": false
+        }
+      ],
+      "deliveryDeadline": "2026-09-20"
+    },
+    "name": "Central de Anexos & URLs (Cópia) (Cópia)",
+    "tags": [
+      "attachment"
+    ],
+    "type": "attachment",
+    "color": "blue",
+    "width": 350,
+    "height": 340,
+    "locked": false,
+    "status": "A Fazer",
+    "createdAt": "03/09/2026",
+    "updatedAt": "03/09/2026"
+  },
+  {
+    "x": 11766,
+    "y": -1423,
+    "id": "node-attachment-1788474306337-0-102",
+    "data": {
+      "dueDate": "2026-09-20",
+      "deadline": "2026-09-20",
+      "startDate": "2026-09-01",
+      "attachments": [
+        {
+          "id": "att-1",
+          "url": "https://drive.google.com/file/d/sample-cad",
+          "name": "Desenho Técnico (CAD)",
+          "type": "cad",
+          "checked": true
+        },
+        {
+          "id": "att-2",
+          "url": "https://drive.google.com/file/d/sample-pdf",
+          "name": "Especificação Técnica PDF",
+          "type": "pdf",
+          "checked": true
+        },
+        {
+          "id": "att-3",
+          "url": "https://docs.google.com/spreadsheets/d/sample-sheet",
+          "name": "Planilha de Custo / Orçamento",
+          "type": "doc",
+          "checked": false
+        }
+      ],
+      "deliveryDeadline": "2026-09-20"
+    },
+    "name": "Central de Anexos & URLs (Cópia) (Cópia)",
+    "tags": [
+      "attachment"
+    ],
+    "type": "attachment",
+    "color": "blue",
+    "width": 350,
+    "height": 340,
+    "locked": false,
+    "status": "A Fazer",
+    "createdAt": "03/09/2026",
+    "updatedAt": "03/09/2026"
+  },
+  {
+    "x": 9296,
+    "y": -1238,
+    "id": "node-kanban-1788474345895-0-996",
+    "data": {
+      "cards": [
+        {
+          "id": "c1",
+          "title": "Elaborar plano de montagem",
+          "columnId": "col-todo",
+          "priority": "alta"
+        },
+        {
+          "id": "c2",
+          "title": "Comprar componentes de reposição",
+          "columnId": "col-in-progress",
+          "priority": "media"
+        }
+      ],
+      "columns": [
+        {
+          "id": "col-todo",
+          "color": "#64748b",
+          "title": "A FAZER"
+        },
+        {
+          "id": "col-in-progress",
+          "color": "#3b82f6",
+          "title": "EM ANDAMENTO"
+        },
+        {
+          "id": "col-done",
+          "color": "#10b981",
+          "title": "CONCLUÍDO"
+        }
+      ]
+    },
+    "name": "Fluxo de Tarefas (Cópia) (Cópia)",
+    "tags": [
+      "kanban"
+    ],
+    "type": "kanban",
+    "color": "blue",
+    "width": 620,
+    "height": 360,
+    "locked": false,
+    "status": "A Fazer",
+    "createdAt": "03/09/2026",
+    "updatedAt": "03/09/2026"
+  },
+  {
+    "x": 10747,
+    "y": -1306,
+    "id": "node-kanban-1788474396735-0-138",
+    "data": {
+      "cards": [
+        {
+          "id": "c1",
+          "title": "Elaborar plano de montagem",
+          "columnId": "col-todo",
+          "priority": "alta"
+        },
+        {
+          "id": "c2",
+          "title": "Comprar componentes de reposição",
+          "columnId": "col-in-progress",
+          "priority": "media"
+        }
+      ],
+      "columns": [
+        {
+          "id": "col-todo",
+          "color": "#64748b",
+          "title": "A FAZER"
+        },
+        {
+          "id": "col-in-progress",
+          "color": "#3b82f6",
+          "title": "EM ANDAMENTO"
+        },
+        {
+          "id": "col-done",
+          "color": "#10b981",
+          "title": "CONCLUÍDO"
+        }
+      ]
+    },
+    "name": "Fluxo de Tarefas (Cópia) (Cópia)",
+    "tags": [
+      "kanban"
+    ],
+    "type": "kanban",
+    "color": "blue",
+    "width": 620,
+    "height": 360,
+    "locked": false,
+    "status": "A Fazer",
+    "createdAt": "03/09/2026",
+    "updatedAt": "03/09/2026"
+  },
+  {
+    "x": 12609,
+    "y": -1162,
+    "id": "node-kanban-1788474398927-0-122",
+    "data": {
+      "cards": [
+        {
+          "id": "c1",
+          "title": "Elaborar plano de montagem",
+          "columnId": "col-todo",
+          "priority": "alta"
+        },
+        {
+          "id": "c2",
+          "title": "Comprar componentes de reposição",
+          "columnId": "col-in-progress",
+          "priority": "media"
+        }
+      ],
+      "columns": [
+        {
+          "id": "col-todo",
+          "color": "#64748b",
+          "title": "A FAZER"
+        },
+        {
+          "id": "col-in-progress",
+          "color": "#3b82f6",
+          "title": "EM ANDAMENTO"
+        },
+        {
+          "id": "col-done",
+          "color": "#10b981",
+          "title": "CONCLUÍDO"
+        }
+      ]
+    },
+    "name": "Fluxo de Tarefas (Cópia) (Cópia)",
+    "tags": [
+      "kanban"
+    ],
+    "type": "kanban",
+    "color": "blue",
+    "width": 620,
+    "height": 360,
+    "locked": false,
+    "status": "A Fazer",
+    "createdAt": "03/09/2026",
+    "updatedAt": "03/09/2026"
+  },
+  {
+    "x": 5910,
+    "y": 2062,
+    "id": "node-interrupted_flow-1788485540723",
+    "data": {
+      "isResolved": true,
+      "currentValue": 82,
+      "incidentDate": "03/09/2026 22:32",
+      "orderProgress": 82,
+      "incidentSector": "Usinagem / Produção",
+      "progressPercent": 82,
+      "projectProgress": 82,
+      "incidentDescription": "Parada não planejada do processo por falha operacional.",
+      "incidentResponsible": "Líder de Turno",
+      "incidentResolutionDate": "Previsão: Hoje às 18:00"
+    },
+    "name": "Fluxo Interrompido",
+    "tags": [
+      "interrupted_flow"
+    ],
+    "type": "interrupted_flow",
+    "color": "rose",
+    "width": 360,
+    "height": 420,
+    "status": "A Fazer",
+    "createdAt": "01/09/2026",
+    "updatedAt": "01/09/2026"
+  },
+  {
+    "x": -228,
+    "y": -1098,
+    "id": "node-budget-1788487132054",
+    "data": {
+      "content": "Clique duas vezes para editar o texto...",
+      "hideValue": false,
+      "orderValue": 120000,
+      "validUntil": "2026-09-25",
+      "customerName": "Cliente em Prospecção",
+      "hideValueOnly": false,
+      "totalOrderValue": 120000,
+      "paymentConditions": "30 DDL"
+    },
+    "name": "Texto",
+    "tags": [
+      "budget"
+    ],
+    "type": "budget",
+    "color": "blue",
+    "width": 280,
+    "height": 180,
+    "status": "A Fazer",
+    "createdAt": "01/09/2026",
+    "updatedAt": "01/09/2026"
+  }
 ];
 
 export const CONTROLE_PRODUCAO_CONNECTIONS: Connection[] = [
   {
-    id: 'c-cp-1',
-    fromId: 'node-cp-1',
-    toId: 'node-cp-6',
-    strokePattern: 'solid',
+    "id": "conn-1788473462368",
+    "toId": "node-production_order-1788473130600",
+    "arrow": "end",
+    "color": "#38bdf8",
+    "label": "relacionado",
+    "fromId": "node-document-1788473366216",
+    "animated": true,
+    "autoSync": true,
+    "toHandle": "left-1",
+    "lineStyle": "curved",
+    "fromHandle": "right-1",
+    "dataExchange": {},
+    "relationType": "custom"
   },
   {
-    id: 'c-cp-2',
-    fromId: 'node-cp-2',
-    toId: 'node-cp-13',
-    strokePattern: 'solid',
+    "id": "conn-1788473471575",
+    "toId": "node-production_route-1788473137087",
+    "arrow": "end",
+    "color": "#38bdf8",
+    "label": "relacionado",
+    "fromId": "node-production_order-1788473130600",
+    "animated": true,
+    "autoSync": true,
+    "toHandle": "left-1",
+    "lineStyle": "curved",
+    "fromHandle": "right-1",
+    "dataExchange": {},
+    "relationType": "custom"
   },
   {
-    id: 'c-cp-3',
-    fromId: 'node-cp-7',
-    toId: 'node-cp-12',
-    strokePattern: 'solid',
+    "id": "conn-1788473539839",
+    "toId": "node-attachment-1788473350184",
+    "arrow": "end",
+    "color": "#38bdf8",
+    "label": "relacionado",
+    "fromId": "node-production_route-1788473137087",
+    "animated": true,
+    "autoSync": true,
+    "toHandle": "left-1",
+    "lineStyle": "curved",
+    "fromHandle": "right-1",
+    "dataExchange": {},
+    "relationType": "custom"
   },
   {
-    id: 'c-cp-4',
-    fromId: 'node-cp-10',
-    toId: 'node-cp-17',
-    strokePattern: 'solid',
+    "id": "conn-1788473639135",
+    "toId": "node-document-1788473622695",
+    "arrow": "end",
+    "color": "#38bdf8",
+    "label": "relacionado",
+    "fromId": "node-attachment-1788473350184",
+    "animated": true,
+    "autoSync": true,
+    "toHandle": "left-1",
+    "lineStyle": "curved",
+    "fromHandle": "right-1",
+    "dataExchange": {},
+    "relationType": "custom"
   },
   {
-    id: 'c-cp-5',
-    fromId: 'node-cp-11',
-    toId: 'node-cp-18',
-    strokePattern: 'solid',
+    "id": "conn-1788473762695",
+    "toId": "node-attachment-1788473695832",
+    "arrow": "end",
+    "color": "#38bdf8",
+    "label": "relacionado",
+    "fromId": "node-attachment-1788473350184",
+    "animated": true,
+    "autoSync": true,
+    "toHandle": "top-1",
+    "lineStyle": "curved",
+    "fromHandle": "right-1",
+    "dataExchange": {},
+    "relationType": "custom"
   },
+  {
+    "id": "conn-1788473898279",
+    "toId": "node-kanban-1788473881768",
+    "arrow": "end",
+    "color": "#38bdf8",
+    "label": "relacionado",
+    "fromId": "node-attachment-1788473695832",
+    "animated": true,
+    "autoSync": true,
+    "toHandle": "left-1",
+    "lineStyle": "curved",
+    "fromHandle": "right-1",
+    "dataExchange": {},
+    "relationType": "custom"
+  },
+  {
+    "id": "conn-1788473947279",
+    "toId": "node-production_route-1788473137087",
+    "arrow": "end",
+    "color": "#38bdf8",
+    "label": "relacionado",
+    "fromId": "node-project-1788473609495",
+    "animated": true,
+    "autoSync": true,
+    "toHandle": "right-5",
+    "lineStyle": "curved",
+    "fromHandle": "left-3",
+    "dataExchange": {},
+    "relationType": "custom"
+  },
+  {
+    "id": "conn-1788474035775",
+    "toId": "node-kanban-1788474012039-0-776",
+    "arrow": "end",
+    "color": "#38bdf8",
+    "label": "relacionado",
+    "fromId": "node-attachment-1788473994752-0-919",
+    "animated": true,
+    "autoSync": true,
+    "toHandle": "left-1",
+    "lineStyle": "curved",
+    "fromHandle": "right-1",
+    "dataExchange": {},
+    "relationType": "custom"
+  },
+  {
+    "id": "conn-1788474059753",
+    "toId": "node-attachment-1788473994752-0-919",
+    "arrow": "end",
+    "color": "#38bdf8",
+    "label": "relacionado",
+    "fromId": "node-attachment-1788473350184",
+    "animated": true,
+    "autoSync": true,
+    "toHandle": "top-1",
+    "lineStyle": "curved",
+    "fromHandle": "top-3",
+    "dataExchange": {},
+    "relationType": "custom"
+  },
+  {
+    "id": "conn-1788474324023",
+    "toId": "node-attachment-1788474288087-0-542",
+    "arrow": "end",
+    "color": "#38bdf8",
+    "label": "relacionado",
+    "fromId": "node-production_route-1788473137087",
+    "animated": true,
+    "autoSync": true,
+    "toHandle": "top-1",
+    "lineStyle": "curved",
+    "fromHandle": "top-5",
+    "dataExchange": {},
+    "relationType": "custom"
+  },
+  {
+    "id": "conn-1788474359055",
+    "toId": "node-kanban-1788474345895-0-996",
+    "arrow": "end",
+    "color": "#38bdf8",
+    "label": "relacionado",
+    "fromId": "node-attachment-1788474288087-0-542",
+    "animated": true,
+    "autoSync": true,
+    "toHandle": "left-1",
+    "lineStyle": "curved",
+    "fromHandle": "right-1",
+    "dataExchange": {},
+    "relationType": "custom"
+  },
+  {
+    "id": "conn-1788474426991",
+    "toId": "node-attachment-1788474296127-0-963",
+    "arrow": "end",
+    "color": "#38bdf8",
+    "label": "relacionado",
+    "fromId": "node-attachment-1788473350184",
+    "animated": true,
+    "autoSync": true,
+    "toHandle": "top-1",
+    "lineStyle": "curved",
+    "fromHandle": "top-2",
+    "dataExchange": {},
+    "relationType": "custom"
+  },
+  {
+    "id": "conn-1788474436935",
+    "toId": "node-attachment-1788474306337-0-102",
+    "arrow": "end",
+    "color": "#38bdf8",
+    "label": "relacionado",
+    "fromId": "node-attachment-1788473350184",
+    "animated": true,
+    "autoSync": true,
+    "toHandle": "top-1",
+    "lineStyle": "curved",
+    "fromHandle": "top-1",
+    "dataExchange": {},
+    "relationType": "custom"
+  },
+  {
+    "id": "conn-1788474490754",
+    "toId": "node-project-1788473609495",
+    "arrow": "end",
+    "color": "#38bdf8",
+    "label": "relacionado",
+    "fromId": "node-document-1788473622695",
+    "animated": true,
+    "autoSync": true,
+    "toHandle": "left-1",
+    "lineStyle": "curved",
+    "fromHandle": "right-3",
+    "dataExchange": {},
+    "relationType": "custom"
+  },
+  {
+    "id": "conn-1788474502607",
+    "toId": "node-production_route-1788473137087",
+    "arrow": "end",
+    "color": "#38bdf8",
+    "label": "relacionado",
+    "fromId": "node-kanban-1788474012039-0-776",
+    "animated": true,
+    "autoSync": true,
+    "toHandle": "bottom-5",
+    "lineStyle": "curved",
+    "fromHandle": "bottom-1",
+    "dataExchange": {},
+    "relationType": "custom"
+  },
+  {
+    "id": "conn-1788474509368",
+    "toId": "node-production_route-1788473137087",
+    "arrow": "end",
+    "color": "#38bdf8",
+    "label": "relacionado",
+    "fromId": "node-kanban-1788473881768",
+    "animated": true,
+    "autoSync": true,
+    "toHandle": "bottom-4",
+    "lineStyle": "curved",
+    "fromHandle": "bottom-1",
+    "dataExchange": {},
+    "relationType": "custom"
+  },
+  {
+    "id": "conn-1788474531807",
+    "toId": "node-production_route-1788473137087",
+    "arrow": "end",
+    "color": "#38bdf8",
+    "label": "relacionado",
+    "fromId": "node-kanban-1788474345895-0-996",
+    "animated": true,
+    "autoSync": true,
+    "toHandle": "bottom-4",
+    "lineStyle": "curved",
+    "fromHandle": "bottom-1",
+    "dataExchange": {},
+    "relationType": "custom"
+  },
+  {
+    "id": "conn-1788474540511",
+    "toId": "node-production_route-1788473137087",
+    "arrow": "end",
+    "color": "#38bdf8",
+    "label": "relacionado",
+    "fromId": "node-kanban-1788474396735-0-138",
+    "animated": true,
+    "autoSync": true,
+    "toHandle": "bottom-4",
+    "lineStyle": "curved",
+    "fromHandle": "bottom-1",
+    "dataExchange": {},
+    "relationType": "custom"
+  },
+  {
+    "id": "conn-1788474652968",
+    "toId": "node-kanban-1788474398927-0-122",
+    "arrow": "end",
+    "color": "#38bdf8",
+    "label": "relacionado",
+    "fromId": "node-attachment-1788474306337-0-102",
+    "animated": true,
+    "autoSync": true,
+    "toHandle": "left-1",
+    "lineStyle": "curved",
+    "fromHandle": "right-1",
+    "dataExchange": {},
+    "relationType": "custom"
+  },
+  {
+    "id": "conn-1788474768322",
+    "toId": "node-customer-1788474199479",
+    "arrow": "end",
+    "color": "#38bdf8",
+    "label": "relacionado",
+    "fromId": "node-kanban-1788474398927-0-122",
+    "animated": true,
+    "autoSync": true,
+    "toHandle": "bottom-2",
+    "lineStyle": "curved",
+    "fromHandle": "bottom-2",
+    "dataExchange": {},
+    "relationType": "custom"
+  },
+  {
+    "id": "conn-1788485266907",
+    "toId": "node-kanban-1788474396735-0-138",
+    "arrow": "end",
+    "color": "#38bdf8",
+    "label": "relacionado",
+    "fromId": "node-attachment-1788474296127-0-963",
+    "animated": true,
+    "autoSync": true,
+    "toHandle": "left-1",
+    "lineStyle": "curved",
+    "fromHandle": "right-2",
+    "dataExchange": {},
+    "relationType": "custom"
+  },
+  {
+    "id": "conn-1788486985371",
+    "toId": "node-kanban-1788474398927-0-122",
+    "arrow": "end",
+    "color": "#f43f5e",
+    "label": "Interrupção de Fluxo",
+    "fromId": "node-interrupted_flow-1788485540723",
+    "animated": true,
+    "toHandle": "top-2",
+    "lineStyle": "curved",
+    "fromHandle": "right-2",
+    "strokePattern": "dashed",
+    "toConnectionId": "conn-1788474768322"
+  },
+  {
+    "id": "conn-1788487465858",
+    "toId": "node-budget-1788487132054",
+    "arrow": "end",
+    "color": "#38bdf8",
+    "label": "relacionado",
+    "fromId": "node-customer-1788474199479",
+    "animated": true,
+    "autoSync": true,
+    "toHandle": "left-1",
+    "lineStyle": "curved",
+    "fromHandle": "right-1",
+    "dataExchange": {},
+    "relationType": "custom",
+    "strokePattern": "solid"
+  },
+  {
+    "id": "conn-1788487468458",
+    "toId": "node-budget-1788473070448",
+    "arrow": "end",
+    "color": "#38bdf8",
+    "label": "relacionado",
+    "fromId": "node-budget-1788487132054",
+    "animated": true,
+    "autoSync": true,
+    "toHandle": "left-1",
+    "lineStyle": "curved",
+    "fromHandle": "right-1",
+    "dataExchange": {},
+    "relationType": "custom",
+    "strokePattern": "solid"
+  },
+  {
+    "id": "conn-1788487484146",
+    "toId": "node-document-1788473366216",
+    "arrow": "end",
+    "color": "#38bdf8",
+    "label": "relacionado",
+    "fromId": "node-budget-1788473070448",
+    "animated": true,
+    "autoSync": true,
+    "toHandle": "left-1",
+    "lineStyle": "curved",
+    "fromHandle": "right-1",
+    "dataExchange": {},
+    "relationType": "custom",
+    "strokePattern": "solid"
+  }
 ];

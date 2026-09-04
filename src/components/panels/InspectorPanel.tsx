@@ -48,6 +48,8 @@ import {
   ChevronRight,
   FolderOpen,
   Calculator,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -66,6 +68,7 @@ interface InspectorPanelProps {
   onOpenInvoiceModal?: (nodeId: string) => void;
   onSyncConnectionData?: (connId: string) => void;
   onDuplicateNode?: (nodeId: string) => void;
+  onCopyNode?: (nodeId: string) => void;
   onExpandNode?: (nodeId: string) => void;
   dockPosition: 'left' | 'right' | 'floating';
   onSetDockPosition: (pos: 'left' | 'right' | 'floating') => void;
@@ -90,6 +93,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   onOpenInvoiceModal,
   onSyncConnectionData,
   onDuplicateNode,
+  onCopyNode,
   onExpandNode,
   dockPosition,
   onSetDockPosition,
@@ -841,8 +845,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
           </div>
         </div>
 
-        {/* Dynamic Deadline & Border State Monitor (Excluding Base Nodes like Customer) */}
-        {selectedNode.type !== 'customer' && (() => {
+        {/* Dynamic Deadline & Border State Monitor (Excluding Base Nodes like Customer, Attachment and Document) */}
+        {selectedNode.type !== 'customer' && selectedNode.type !== 'attachment' && selectedNode.type !== 'document' && (() => {
           const dInfo = getNodeDeadlineInfo(selectedNode);
           const rawStart = selectedNode.data.startDate || '';
           const rawDeadline = selectedNode.data.deliveryDeadline || selectedNode.data.dueDate || selectedNode.data.deadline || '';
@@ -1811,7 +1815,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             </div>
 
             {/* Modalidade: Sem Valor / Descritivo */}
-            <div className="p-2 bg-slate-900/60 border border-white/10 rounded space-y-1.5">
+            <div className="p-2 bg-slate-900/60 border border-white/10 rounded space-y-2">
               <label className="flex items-center gap-2 cursor-pointer text-xs text-white">
                 <input
                   type="checkbox"
@@ -1844,6 +1848,33 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                     placeholder="Especificações técnicas, escopo, desenhos..."
                     className="w-full bg-slate-950/80 border border-sky-500/30 rounded p-1.5 text-xs text-white placeholder-slate-500"
                   />
+                </div>
+              )}
+
+              {/* OPÇÃO: OCULTAR O VALOR APENAS */}
+              {!selectedNode.data.withoutValue && (
+                <div className="pt-1.5 border-t border-white/5">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs text-amber-300 hover:text-amber-200">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(selectedNode.data.hideValueOnly || selectedNode.data.hideValue)}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        onUpdateNodeData(selectedNode.id, {
+                          hideValueOnly: checked,
+                          hideValue: checked,
+                        });
+                      }}
+                      className="rounded border-slate-700 bg-slate-950 text-amber-500 focus:ring-amber-500"
+                    />
+                    <EyeOff className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <span className="font-semibold text-[11px]">
+                      Ocultar o valor apenas (Exibição sigilosa)
+                    </span>
+                  </label>
+                  <p className="text-[9px] text-slate-400 pl-5.5 mt-0.5">
+                    O valor é mantido nos totais e relatórios, mas fica oculto no card do canvas.
+                  </p>
                 </div>
               )}
             </div>
@@ -2244,13 +2275,23 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
               <span>Expandir Modo Foco</span>
             </button>
           )}
+          {onCopyNode && (
+            <button
+              onClick={() => onCopyNode(selectedNode.id)}
+              className="w-full flex items-center justify-center gap-1.5 py-2 bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 border border-sky-500/30 rounded-xl transition-colors font-mono cursor-pointer"
+              title="Copiar Quadro para Área de Transferência (Ctrl+C)"
+            >
+              <Copy className="w-3.5 h-3.5 text-sky-400" />
+              <span>Copiar Quadro (Ctrl+C)</span>
+            </button>
+          )}
           {onDuplicateNode && (
             <button
               onClick={() => onDuplicateNode(selectedNode.id)}
               className="w-full flex items-center justify-center gap-1.5 py-2 bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/50 rounded-xl transition-colors font-mono"
             >
               <Copy className="w-3.5 h-3.5" />
-              <span>Duplicar Quadro</span>
+              <span>Duplicar Quadro (Ctrl+D)</span>
             </button>
           )}
           <button

@@ -8,7 +8,7 @@ import {
 } from '../../utils/flowIntelligence';
 import { getNodeDeadlineInfo } from '../../utils/nodeDeadline';
 import { getNodeColorTheme } from '../../utils/nodeTheme';
-import { Lock, Unlock, Copy, Trash2, Link, Sparkles, Maximize2, AlertTriangle, AlertCircle, CheckCircle2, FileText } from 'lucide-react';
+import { Lock, Unlock, Copy, CopyPlus, Trash2, Link, Sparkles, Maximize2, AlertTriangle, AlertCircle, CheckCircle2, FileText } from 'lucide-react';
 
 interface NodeWrapperProps {
   node: CanvasNode;
@@ -29,6 +29,7 @@ interface NodeWrapperProps {
   onEndConnect?: (nodeId: string, handle?: ConnectionHandle) => void;
   onToggleLock?: (nodeId: string) => void;
   onDuplicate?: (nodeId: string) => void;
+  onCopy?: (nodeId: string) => void;
   onDelete?: (nodeId: string) => void;
   onExpand?: (nodeId: string) => void;
   onOpenReport?: (nodeId: string) => void;
@@ -54,6 +55,7 @@ export const NodeWrapper: React.FC<NodeWrapperProps> = ({
   onEndConnect,
   onToggleLock,
   onDuplicate,
+  onCopy,
   onDelete,
   onExpand,
   onOpenReport,
@@ -218,7 +220,7 @@ export const NodeWrapper: React.FC<NodeWrapperProps> = ({
 
       {/* Node Content Container */}
       <div
-        className={`relative w-full min-h-full h-full rounded-xl transition-all duration-200 ${getBorderColor()} ${isCompleted && !isBottleneck ? 'animate-completed-pulse' : ''} ${isBottleneck ? 'animate-bottleneck-pulse' : ''}`}
+        className={`relative w-full min-h-full h-full rounded-xl transition-all duration-200 ${getBorderColor()} ${isBottleneck ? 'animate-bottleneck-pulse' : ''}`}
       >
         {children}
 
@@ -273,12 +275,20 @@ export const NodeWrapper: React.FC<NodeWrapperProps> = ({
               {node.locked ? <Lock className="w-3.5 h-3.5 text-amber-400" /> : <Unlock className="w-3.5 h-3.5" />}
             </button>
             <button
+              id={`btn-copy-${node.id}`}
+              onClick={() => onCopy?.(node.id)}
+              className="p-1 hover:text-sky-300 hover:bg-white/10 rounded transition-colors"
+              title="Copiar objeto (Ctrl+C)"
+            >
+              <Copy className="w-3.5 h-3.5 text-sky-400" />
+            </button>
+            <button
               id={`btn-dup-${node.id}`}
               onClick={() => onDuplicate?.(node.id)}
               className="p-1 hover:text-white hover:bg-white/10 rounded transition-colors"
               title="Duplicar objeto (Ctrl+D)"
             >
-              <Copy className="w-3.5 h-3.5" />
+              <CopyPlus className="w-3.5 h-3.5" />
             </button>
             <button
               id={`btn-del-${node.id}`}

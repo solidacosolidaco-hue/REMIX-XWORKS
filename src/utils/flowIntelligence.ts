@@ -1267,7 +1267,8 @@ export const NODE_DESCRIPTIONS: Record<NodeType, string> = {
   group: 'Setor',
   custom: 'Quadro genérico configurável com atributos e propriedades livres.',
   finalized_order: 'Marcação de pedido concluído, consolidando valores e encerramento.',
-  financial_module: 'Controle de custos, DRE, receitas brutas e consolidação financeira.'
+  financial_module: 'Controle de custos, DRE, receitas brutas e consolidação financeira.',
+  interrupted_flow: 'Ocorrência de problema no processo que bloqueia a animação do fluxo até ser marcado como resolvido.'
 };
 
 export interface FeedPhraseInfo {

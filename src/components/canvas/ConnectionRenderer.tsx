@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CanvasNode, Connection, ConnectionHandle, ConnectionLineStyle } from '../../types/canvas';
 import { generatePath, getAutoHandles, getHandlePosition } from '../../utils/geometry';
 import { getFeedPhrase, isConnectionLogicValid, calculateConnectionValue, getStrokeWidthFromValue } from '../../utils/flowIntelligence';
+import { getNodeDeadlineInfo } from '../../utils/nodeDeadline';
 import { X, ArrowRight, Zap, AlertCircle, Paperclip, ExternalLink } from 'lucide-react';
 
 interface ConnectionRendererProps {
@@ -18,6 +19,7 @@ interface ConnectionRendererProps {
   } | null;
   onSelectConnection: (connId: string) => void;
   onDeleteConnection: (connId: string) => void;
+  onConnectToLine?: (fromNodeId: string, targetConnectionId: string, fromHandle?: ConnectionHandle) => void;
   isLightMode?: boolean;
 }
 
@@ -31,11 +33,89 @@ export const ConnectionRenderer: React.FC<ConnectionRendererProps> = ({
   activeConnecting,
   onSelectConnection,
   onDeleteConnection,
+  onConnectToLine,
   isLightMode = false,
 }) => {
   const [hoveredConnId, setHoveredConnId] = useState<string | null>(null);
 
   const nodeMap = new Map<string, CanvasNode>(nodes.map((n) => [n.id, n]));
+
+  // Find all unresolved 'interrupted_flow' nodes
+  const unresolvedInterruptedNodes = React.useMemo(() => {
+    return nodes.filter((n) => n.type === 'interrupted_flow' && !n.data?.isResolved);
+  }, [nodes]);
+
+  const unresolvedInterruptedIds = React.useMemo(() => {
+    return new Set(unresolvedInterruptedNodes.map((n) => n.id));
+  }, [unresolvedInterruptedNodes]);
+
+  // Compute set of all connection IDs that are interrupted (ONLY the specific line connected or intersected)
+  const interruptedConnectionIds = React.useMemo(() => {
+    if (unresolvedInterruptedNodes.length === 0) return new Set<string>();
+
+    const interruptedConns = new Set<string>();
+
+    // Identify direct & spatial interruptions from unresolved interrupted_flow nodes
+    for (const interNode of unresolvedInterruptedNodes) {
+      const interId = interNode.id;
+      const posX = interNode.position?.x ?? interNode.x ?? 0;
+      const posY = interNode.position?.y ?? interNode.y ?? 0;
+      const bw = interNode.width || 360;
+      const bh = interNode.height || 420;
+      const bx1 = posX - 10;
+      const by1 = posY - 10;
+      const bx2 = posX + bw + 10;
+      const by2 = posY + bh + 10;
+
+      for (const conn of connections) {
+        let isDirect = false;
+
+        // Direct wire to a connection line (toConnectionId)
+        if (conn.toConnectionId && conn.fromId === interId) {
+          interruptedConns.add(conn.toConnectionId);
+          interruptedConns.add(conn.id);
+          isDirect = true;
+        }
+
+        // Direct connection FROM interrupted_flow to a node or another connection
+        if (conn.fromId === interId) {
+          interruptedConns.add(conn.id);
+          isDirect = true;
+        }
+
+        // Direct connection INTO interrupted_flow
+        if (conn.toId === interId) {
+          interruptedConns.add(conn.id);
+          isDirect = true;
+        }
+
+        if (!isDirect) {
+          // Spatial Overlap Check: card positioned directly on top of line
+          const fromNode = nodeMap.get(conn.fromId);
+          const toNode = nodeMap.get(conn.toId);
+          if (fromNode && toNode) {
+            const autoH = getAutoHandles(fromNode, toNode);
+            const start = getHandlePosition(fromNode, conn.fromHandle || autoH.fromHandle);
+            const end = getHandlePosition(toNode, conn.toHandle || autoH.toHandle);
+            const { midPoint } = generatePath(start, end, conn.fromHandle || autoH.fromHandle, conn.toHandle || autoH.toHandle, conn.lineStyle || 'curved');
+
+            for (let i = 0; i <= 15; i++) {
+              const t = i / 15;
+              const px = (1 - t) * (1 - t) * (start.x ?? 0) + 2 * (1 - t) * t * (midPoint.x ?? 0) + t * t * (end.x ?? 0);
+              const py = (1 - t) * (1 - t) * (start.y ?? 0) + 2 * (1 - t) * t * (midPoint.y ?? 0) + t * t * (end.y ?? 0);
+
+              if (px >= bx1 && px <= bx2 && py >= by1 && py <= by2) {
+                interruptedConns.add(conn.id);
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return interruptedConns;
+  }, [unresolvedInterruptedNodes, connections, nodeMap]);
 
   return (
     <svg
@@ -43,7 +123,7 @@ export const ConnectionRenderer: React.FC<ConnectionRendererProps> = ({
       style={{ width: '100%', height: '100%' }}
     >
       <defs>
-        {/* Markers for arrows */}
+        {/* Markers for arrows (Dark Mode/Standard) */}
         <marker
           id="arrow-default"
           viewBox="0 0 10 10"
@@ -104,6 +184,67 @@ export const ConnectionRenderer: React.FC<ConnectionRendererProps> = ({
           <path d="M 0 1 L 10 5 L 0 9 z" fill="#06b6d4" />
         </marker>
 
+        {/* Markers for arrows (Light Mode High-Contrast) */}
+        <marker
+          id="arrow-default-light"
+          viewBox="0 0 10 10"
+          refX="6"
+          refY="5"
+          markerWidth="6"
+          markerHeight="6"
+          orient="auto-start-reverse"
+        >
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="#0284c7" />
+        </marker>
+
+        <marker
+          id="arrow-emerald-light"
+          viewBox="0 0 10 10"
+          refX="6"
+          refY="5"
+          markerWidth="6"
+          markerHeight="6"
+          orient="auto-start-reverse"
+        >
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="#059669" />
+        </marker>
+
+        <marker
+          id="arrow-amber-light"
+          viewBox="0 0 10 10"
+          refX="6"
+          refY="5"
+          markerWidth="6"
+          markerHeight="6"
+          orient="auto-start-reverse"
+        >
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="#d97706" />
+        </marker>
+
+        <marker
+          id="arrow-rose-light"
+          viewBox="0 0 10 10"
+          refX="6"
+          refY="5"
+          markerWidth="6"
+          markerHeight="6"
+          orient="auto-start-reverse"
+        >
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="#e11d48" />
+        </marker>
+
+        <marker
+          id="arrow-cyan-light"
+          viewBox="0 0 10 10"
+          refX="6"
+          refY="5"
+          markerWidth="6"
+          markerHeight="6"
+          orient="auto-start-reverse"
+        >
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="#0891b2" />
+        </marker>
+
         {/* Glow Filters */}
         <filter id="glow-connection" x="-20%" y="-20%" width="140%" height="140%">
           <feGaussianBlur stdDeviation="3" result="blur" />
@@ -114,16 +255,35 @@ export const ConnectionRenderer: React.FC<ConnectionRendererProps> = ({
       {/* Render All Existing Connections */}
       {connections.map((conn) => {
         const fromNode = nodeMap.get(conn.fromId);
-        const toNode = nodeMap.get(conn.toId);
+        let toNode = nodeMap.get(conn.toId);
 
-        if (!fromNode || !toNode) return null;
+        if (!fromNode) return null;
 
-        const autoHandles = getAutoHandles(fromNode, toNode);
+        const autoHandles = toNode ? getAutoHandles(fromNode, toNode) : { fromHandle: 'bottom-2' as ConnectionHandle, toHandle: 'top-2' as ConnectionHandle };
         const fromHandle = conn.fromHandle || autoHandles.fromHandle;
         const toHandle = conn.toHandle || autoHandles.toHandle;
 
         const start = getHandlePosition(fromNode, fromHandle);
-        const end = getHandlePosition(toNode, toHandle);
+        let end = toNode ? getHandlePosition(toNode, toHandle) : { x: 0, y: 0 };
+
+        // If this wire connects directly to another connection line
+        if (conn.toConnectionId) {
+          const targetConn = connections.find((tc) => tc.id === conn.toConnectionId);
+          if (targetConn) {
+            const targetFrom = nodeMap.get(targetConn.fromId);
+            const targetTo = nodeMap.get(targetConn.toId);
+            if (targetFrom && targetTo) {
+              const autoH = getAutoHandles(targetFrom, targetTo);
+              const targetStart = getHandlePosition(targetFrom, targetConn.fromHandle || autoH.fromHandle);
+              const targetEnd = getHandlePosition(targetTo, targetConn.toHandle || autoH.toHandle);
+              const targetPathRes = generatePath(targetStart, targetEnd, targetConn.fromHandle || autoH.fromHandle, targetConn.toHandle || autoH.toHandle, targetConn.lineStyle || 'curved');
+              end = targetPathRes.midPoint;
+              if (!toNode) toNode = targetTo;
+            }
+          }
+        }
+
+        if (!toNode) return null;
 
         const { path, midPoint } = generatePath(
           start,
@@ -146,15 +306,37 @@ export const ConnectionRenderer: React.FC<ConnectionRendererProps> = ({
 
         const isDimmed = investigatedNodeId && !isInvestigated;
         const isLogicallyValid = isConnectionLogicValid(fromNode.type, toNode.type);
+        const isInterrupted = interruptedConnectionIds.has(conn.id);
         const connectionValue = calculateConnectionValue(fromNode, toNode);
+        const fromDeadline = getNodeDeadlineInfo(fromNode);
+        const isFromCompleted = fromDeadline.state === 'completed' || fromNode.status === 'Concluído' || (fromNode.data.progressPercent ?? 0) >= 100;
 
-        const strokeColor = !isLogicallyValid
+        let strokeColor = !isLogicallyValid
           ? '#f43f5e'
-          : isInvestigated
+          : isInterrupted
+          ? '#f43f5e'
+          : isInvestigated || isFromCompleted
           ? '#10b981'
           : isSelected
           ? '#38bdf8'
           : conn.color || '#38bdf8';
+
+        // Adapt colors for light mode to increase contrast, visibility, and depth
+        if (isLightMode) {
+          if (strokeColor === '#38bdf8') {
+            strokeColor = '#0284c7'; // Saturated dark sky blue
+          } else if (strokeColor === '#10b981') {
+            strokeColor = '#059669'; // Saturated deep emerald
+          } else if (strokeColor === '#f43f5e') {
+            strokeColor = '#e11d48'; // High-contrast rose
+          } else if (strokeColor === '#f59e0b') {
+            strokeColor = '#d97706'; // High-contrast warm amber
+          } else if (strokeColor === '#06b6d4') {
+            strokeColor = '#0891b2'; // Rich cyan
+          } else if (strokeColor === '#ffffff' || strokeColor === '#FFF' || strokeColor === 'white') {
+            strokeColor = '#475569'; // High-contrast slate slate
+          }
+        }
 
         // Use dynamic stroke width if value exists
         const baseStrokeWidth = isInvestigated ? 3.5 : isSelected ? 3 : conn.strokeWidth || 2;
@@ -171,7 +353,7 @@ export const ConnectionRenderer: React.FC<ConnectionRendererProps> = ({
               d={path}
               fill="none"
               stroke="transparent"
-              strokeWidth="24"
+              strokeWidth="28"
               className="pointer-events-auto cursor-pointer"
               onMouseEnter={() => setHoveredConnId(conn.id)}
               onMouseLeave={() => setHoveredConnId(null)}
@@ -179,18 +361,39 @@ export const ConnectionRenderer: React.FC<ConnectionRendererProps> = ({
                 e.stopPropagation();
                 onSelectConnection(conn.id);
               }}
+              onMouseUp={(e) => {
+                if (activeConnecting && onConnectToLine) {
+                  e.stopPropagation();
+                  onConnectToLine(activeConnecting.fromNodeId, conn.id, activeConnecting.fromHandle);
+                }
+              }}
             />
 
             {/* Background Shadow / Glow Path */}
-            {!isLightMode && (isSelected || isInvestigated || isHovered || !isLogicallyValid || connectionValue > 50000) && (
+            {(isSelected || isInvestigated || isHovered || isInterrupted || !isLogicallyValid || connectionValue > 50000) && (
               <path
                 d={path}
                 fill="none"
                 stroke={strokeColor}
-                strokeWidth={strokeWidth + 4}
-                strokeOpacity={!isLogicallyValid ? "1" : connectionValue > 100000 ? "0.6" : "0.4"}
-                filter="url(#glow-connection)"
-                className={!isLogicallyValid ? 'animate-error-blink' : connectionValue > 100000 ? 'animate-pulse' : ''}
+                strokeWidth={strokeWidth + 5}
+                strokeOpacity={
+                  isLightMode
+                    ? (!isLogicallyValid || isInterrupted ? "0.22" : "0.12")
+                    : (!isLogicallyValid || isInterrupted ? "0.9" : "0.4")
+                }
+                filter={isLightMode ? undefined : "url(#glow-connection)"}
+                className={!isLogicallyValid ? 'animate-error-blink' : isInterrupted ? 'animate-pulse' : connectionValue > 100000 ? 'animate-pulse' : ''}
+              />
+            )}
+
+            {/* Conduit Pipe Base (Background reference path for animated flows) */}
+            {conn.animated && !isInterrupted && isLogicallyValid && (
+              <path
+                d={path}
+                fill="none"
+                stroke={strokeColor}
+                strokeWidth={strokeWidth}
+                strokeOpacity={isLightMode ? "0.15" : "0.22"}
               />
             )}
 
@@ -203,8 +406,10 @@ export const ConnectionRenderer: React.FC<ConnectionRendererProps> = ({
               strokeDasharray={
                 !isLogicallyValid
                   ? 'none'
+                  : isInterrupted
+                  ? '12 6'
                   : conn.animated
-                  ? '10 8'
+                  ? '14 10' // Standardized spacing
                   : conn.strokePattern === 'dashed'
                   ? '8 6'
                   : conn.strokePattern === 'dotted'
@@ -212,37 +417,104 @@ export const ConnectionRenderer: React.FC<ConnectionRendererProps> = ({
                   : undefined
               }
               strokeLinecap={conn.strokePattern === 'dotted' ? 'round' : undefined}
-              className={!isLogicallyValid ? 'animate-error-blink' : conn.animated ? 'animate-[dash_1.2s_linear_infinite]' : ''}
+              className={
+                !isLogicallyValid
+                  ? 'animate-error-blink'
+                  : isInterrupted
+                  ? 'animate-pulse'
+                  : conn.animated
+                  ? 'animate-[dash_1.4s_linear_infinite]'
+                  : ''
+              }
               markerEnd={
                 conn.arrow === 'start' || conn.arrow === 'none'
                   ? undefined
                   : `url(#arrow-${
-                      !isLogicallyValid
-                        ? 'rose'
-                        : strokeColor.includes('10b981')
-                        ? 'emerald'
-                        : strokeColor.includes('f59e0b')
-                        ? 'amber'
-                        : strokeColor.includes('f43f5e')
-                        ? 'rose'
-                        : strokeColor.includes('06b6d4')
-                        ? 'cyan'
-                        : 'default'
+                      !isLogicallyValid || isInterrupted
+                        ? (isLightMode ? 'rose-light' : 'rose')
+                        : strokeColor === '#10b981' || strokeColor === '#059669'
+                        ? (isLightMode ? 'emerald-light' : 'emerald')
+                        : strokeColor === '#f59e0b' || strokeColor === '#d97706'
+                        ? (isLightMode ? 'amber-light' : 'amber')
+                        : strokeColor === '#f43f5e' || strokeColor === '#e11d48'
+                        ? (isLightMode ? 'rose-light' : 'rose')
+                        : strokeColor === '#06b6d4' || strokeColor === '#0891b2'
+                        ? (isLightMode ? 'cyan-light' : 'cyan')
+                        : (isLightMode ? 'default-light' : 'default')
                     })`
               }
             />
 
-            {/* Traveling Data Flow Particles (only if valid and not in high-performance light mode) */}
-            {!isLightMode && conn.animated && isLogicallyValid && (
+            {/* Traveling Data Flow Particles (Beautifully rendered and highly visible on BOTH light & dark modes) */}
+            {conn.animated && !isInterrupted && isLogicallyValid && (
               <>
-                <circle r="4.5" fill={strokeColor} className="filter drop-shadow-[0_0_10px_currentColor]">
-                  <animateMotion dur="1.6s" repeatCount="indefinite" path={path} />
+                {/* Particle Node 1 */}
+                <circle 
+                  r={isLightMode ? "5.5" : "7.5"} 
+                  fill={strokeColor} 
+                  opacity={isLightMode ? "0.3" : "0.35"} 
+                  className={isLightMode ? "" : "filter drop-shadow-[0_0_8px_currentColor]"}
+                >
+                  <animateMotion dur="1.8s" repeatCount="indefinite" path={path} />
                 </circle>
-                <circle r="3" fill="#ffffff" opacity="0.95" className="filter drop-shadow-[0_0_6px_#ffffff]">
-                  <animateMotion dur="1.6s" begin="0.5s" repeatCount="indefinite" path={path} />
+                <circle 
+                  r={isLightMode ? "3.5" : "4.5"} 
+                  fill={isLightMode ? "#ffffff" : strokeColor} 
+                  opacity="0.85"
+                >
+                  <animateMotion dur="1.8s" repeatCount="indefinite" path={path} />
                 </circle>
-                <circle r="2" fill={strokeColor} opacity="0.8">
-                  <animateMotion dur="1.6s" begin="1.1s" repeatCount="indefinite" path={path} />
+                <circle 
+                  r={isLightMode ? "2" : "2.5"} 
+                  fill={isLightMode ? strokeColor : "#ffffff"}
+                >
+                  <animateMotion dur="1.8s" repeatCount="indefinite" path={path} />
+                </circle>
+
+                {/* Particle Node 2 (Lagging 600ms) */}
+                <circle 
+                  r={isLightMode ? "4.5" : "6.5"} 
+                  fill={strokeColor} 
+                  opacity={isLightMode ? "0.25" : "0.3"} 
+                  className={isLightMode ? "" : "filter drop-shadow-[0_0_8px_currentColor]"}
+                >
+                  <animateMotion dur="1.8s" begin="0.6s" repeatCount="indefinite" path={path} />
+                </circle>
+                <circle 
+                  r={isLightMode ? "2.8" : "3.8"} 
+                  fill={isLightMode ? "#ffffff" : strokeColor} 
+                  opacity="0.8"
+                >
+                  <animateMotion dur="1.8s" begin="0.6s" repeatCount="indefinite" path={path} />
+                </circle>
+                <circle 
+                  r={isLightMode ? "1.5" : "2"} 
+                  fill={isLightMode ? strokeColor : "#ffffff"}
+                >
+                  <animateMotion dur="1.8s" begin="0.6s" repeatCount="indefinite" path={path} />
+                </circle>
+
+                {/* Particle Node 3 (Lagging 1.2s) */}
+                <circle 
+                  r={isLightMode ? "3.5" : "5.5"} 
+                  fill={strokeColor} 
+                  opacity={isLightMode ? "0.2" : "0.25"} 
+                  className={isLightMode ? "" : "filter drop-shadow-[0_0_8px_currentColor]"}
+                >
+                  <animateMotion dur="1.8s" begin="1.2s" repeatCount="indefinite" path={path} />
+                </circle>
+                <circle 
+                  r={isLightMode ? "2" : "3.2"} 
+                  fill={isLightMode ? "#ffffff" : strokeColor} 
+                  opacity="0.75"
+                >
+                  <animateMotion dur="1.8s" begin="1.2s" repeatCount="indefinite" path={path} />
+                </circle>
+                <circle 
+                  r={isLightMode ? "1" : "1.5"} 
+                  fill={isLightMode ? strokeColor : "#ffffff"}
+                >
+                  <animateMotion dur="1.8s" begin="1.2s" repeatCount="indefinite" path={path} />
                 </circle>
               </>
             )}
@@ -268,6 +540,10 @@ export const ConnectionRenderer: React.FC<ConnectionRendererProps> = ({
                 phraseText = `⚠️ FLUXO ILÓGICO: ${fromNode.type} -> ${toNode.type}`;
                 bgClass = "fill-rose-950/95 stroke-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.5)]";
                 textClass = "fill-rose-200 font-black animate-pulse";
+              } else if (isInterrupted) {
+                phraseText = `🛑 FLUXO PARADO: INTERRUPÇÃO EM PROCESSO`;
+                bgClass = "fill-rose-950/95 stroke-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.6)]";
+                textClass = "fill-rose-200 font-bold animate-pulse";
               } else if (isFromSelected) {
                 phraseText = `📤 ALIMENTANDO ➔ '${toNode.name}' (${feedInfo.actionPhrase})`;
                 bgClass = "fill-cyan-950/95 stroke-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.4)]";

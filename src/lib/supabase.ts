@@ -209,16 +209,32 @@ export async function saveSupabaseBoard(board: CanvasBoard): Promise<boolean> {
 
     if (error) {
       if (error.code === 'PGRST205') {
-        console.error('Tabela boards não existe', error);
+        console.warn('Tabela boards não existe no Supabase. É necessário executar o script SQL no editor do Supabase.', error);
         return false;
       }
-      console.error('Erro ao salvar board no Supabase:', error);
+
+      const isNetworkError = 
+        error.message?.includes('Failed to fetch') || 
+        error.message?.includes('network') || 
+        error.message?.includes('fetch') ||
+        error.details?.includes('Failed to fetch') ||
+        error.details?.includes('fetch');
+
+      if (isNetworkError) {
+        console.warn('Aviso Supabase (falha de rede / offline):', error.message || error);
+      } else {
+        console.error('Erro ao salvar board no Supabase:', error);
+      }
       return false;
     }
 
     return true;
-  } catch (err) {
-    console.error('Exceção ao salvar board no Supabase:', err);
+  } catch (err: any) {
+    if (err?.message?.includes('Failed to fetch') || err?.message?.includes('network')) {
+      console.warn('Aviso Supabase (falha de rede / offline):', err?.message);
+    } else {
+      console.error('Exceção ao salvar board no Supabase:', err);
+    }
     return false;
   }
 }

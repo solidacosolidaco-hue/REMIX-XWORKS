@@ -43,6 +43,7 @@ import { ProductionOrderNode } from '../nodes/ProductionOrderNode';
 import { ProductionRouteNode } from '../nodes/ProductionRouteNode';
 import { SectorNode } from '../nodes/SectorNode';
 import { AttachmentNode } from '../nodes/AttachmentNode';
+import { InterruptedFlowNode } from '../nodes/InterruptedFlowNode';
 import { BudgetNode } from '../nodes/BudgetNode';
 import { ConnectionRenderer } from './ConnectionRenderer';
 import { Minimap } from './Minimap';
@@ -75,6 +76,10 @@ interface CanvasProps {
   onUpdateNodeTitle: (nodeId: string, name: string) => void;
   onUpdateNode?: (nodeId: string, updates: Partial<CanvasNode>) => void;
   onDuplicateNode?: (nodeId: string) => void;
+  onCopyNodes?: (nodeIds?: string[]) => void;
+  onCutNodes?: (nodeIds?: string[]) => void;
+  onPasteNodes?: (coords?: { x: number; y: number }) => void;
+  clipboardCount?: number;
   onToggleLock?: (nodeId: string) => void;
   onConnectNodes: (
     fromId: string,
@@ -83,6 +88,11 @@ interface CanvasProps {
     toHandle?: ConnectionHandle
   ) => void;
   onDeleteConnection: (connId: string) => void;
+  onConnectToLine?: (
+    fromNodeId: string,
+    targetConnectionId: string,
+    fromHandle?: ConnectionHandle
+  ) => void;
   onOpenSearch: () => void;
   onOpenAI: () => void;
   onOpenInvoiceModal?: (nodeId: string) => void;
@@ -119,9 +129,14 @@ export const Canvas: React.FC<CanvasProps> = ({
   onUpdateNodeTitle,
   onUpdateNode,
   onDuplicateNode,
+  onCopyNodes,
+  onCutNodes,
+  onPasteNodes,
+  clipboardCount = 0,
   onToggleLock,
   onConnectNodes,
   onDeleteConnection,
+  onConnectToLine,
   onOpenSearch,
   onOpenAI,
   onOpenInvoiceModal,
@@ -134,6 +149,7 @@ export const Canvas: React.FC<CanvasProps> = ({
   onConvertToOrder,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const mouseCanvasPosRef = useRef<{ x: number; y: number } | null>(null);
 
   // Interaction State
   const [isPanning, setIsPanning] = useState(false);
@@ -197,7 +213,7 @@ export const Canvas: React.FC<CanvasProps> = ({
     return map;
   }, [allMissingMandatory, nodes, connections]);
 
-  // Spacebar pan listener
+  // Spacebar pan and keyboard shortcuts listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
@@ -213,13 +229,37 @@ export const Canvas: React.FC<CanvasProps> = ({
         e.preventDefault();
         onOpenSearch();
       }
-      if (e.key.toLowerCase() === 'f') {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+        if (selectedNodeIds.length > 0 && onCopyNodes) {
+          e.preventDefault();
+          onCopyNodes(selectedNodeIds);
+        }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+        if (onPasteNodes) {
+          e.preventDefault();
+          onPasteNodes(mouseCanvasPosRef.current || undefined);
+        }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x') {
+        if (selectedNodeIds.length > 0 && onCutNodes) {
+          e.preventDefault();
+          onCutNodes(selectedNodeIds);
+        }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
+        if (selectedNodeIds.length > 0 && onDuplicateNode) {
+          e.preventDefault();
+          selectedNodeIds.forEach((id) => onDuplicateNode(id));
+        }
+      }
+      if (!e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'f') {
         onFitView();
       }
-      if (e.key.toLowerCase() === 'v') {
+      if (!e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'v') {
         onSetMode('select');
       }
-      if (e.key.toLowerCase() === 'c') {
+      if (!e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'c') {
         onSetMode('connect');
       }
       if (e.key === 'Escape') {
@@ -242,7 +282,19 @@ export const Canvas: React.FC<CanvasProps> = ({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [onDeleteSelected, onOpenSearch, onFitView, onSetMode, onSelectNode, onSelectConnection]);
+  }, [
+    onDeleteSelected,
+    onOpenSearch,
+    onFitView,
+    onSetMode,
+    onSelectNode,
+    onSelectConnection,
+    selectedNodeIds,
+    onCopyNodes,
+    onCutNodes,
+    onPasteNodes,
+    onDuplicateNode,
+  ]);
 
   // Canvas Mouse Wheel Zoom
   const handleWheel = (e: React.WheelEvent) => {
@@ -289,6 +341,14 @@ export const Canvas: React.FC<CanvasProps> = ({
 
   // Canvas Mouse Move
   const handleMouseMove = (e: React.MouseEvent) => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      mouseCanvasPosRef.current = screenToCanvas(
+        { x: e.clientX - rect.left, y: e.clientY - rect.top },
+        viewport
+      );
+    }
+
     if (isPanning) {
       onUpdateViewport({
         x: e.clientX - panStart.x,
@@ -666,6 +726,14 @@ export const Canvas: React.FC<CanvasProps> = ({
             onOpenReport={onOpenSectorReport}
           />
         );
+      case 'interrupted_flow':
+        return (
+          <InterruptedFlowNode
+            node={node}
+            onUpdateData={onUpdateNodeData}
+            onUpdateTitle={onUpdateNodeTitle}
+          />
+        );
       default:
         return (
           <div className="p-4 bg-slate-900 text-slate-100 rounded-xl border border-slate-800">
@@ -763,6 +831,7 @@ export const Canvas: React.FC<CanvasProps> = ({
           activeConnecting={activeConnecting}
           onSelectConnection={onSelectConnection}
           onDeleteConnection={onDeleteConnection}
+          onConnectToLine={onConnectToLine}
           isLightMode={isLightMode}
         />
 
@@ -865,6 +934,7 @@ export const Canvas: React.FC<CanvasProps> = ({
                 onEndConnect={(id, handle) => handleEndConnect(id, handle)}
                 onToggleLock={onToggleLock}
                 onDuplicate={onDuplicateNode}
+                onCopy={(id) => onCopyNodes?.([id])}
                 onDelete={onDeleteSelected}
                 onExpand={onExpandNode}
               >
@@ -894,11 +964,15 @@ export const Canvas: React.FC<CanvasProps> = ({
           y={contextMenu.y}
           canvasCoordinates={contextMenu.canvasCoords}
           currentTheme={theme}
+          clipboardCount={clipboardCount}
+          hasSelectedNodes={selectedNodeIds.length > 0}
           onClose={() => setContextMenu(null)}
           onCreateNode={onCreateNode}
           onEnterConnectMode={() => onSetMode('connect')}
           onOpenProductsCatalog={onOpenProductsCatalog}
           onChangeTheme={onChangeTheme}
+          onCopySelected={() => onCopyNodes?.(selectedNodeIds)}
+          onPaste={(coords) => onPasteNodes?.(coords)}
         />
       )}
     </div>

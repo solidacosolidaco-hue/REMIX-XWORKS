@@ -13,8 +13,6 @@ import {
   FileCode, 
   FileCheck 
 } from 'lucide-react';
-import { NodeProgressBar } from '../common/NodeProgressBar';
-import { NodeTimeFrame } from '../common/NodeTimeFrame';
 import { getNodeColorTheme } from '../../utils/nodeTheme';
 
 interface AttachmentNodeProps {
@@ -38,19 +36,9 @@ export const AttachmentNode: React.FC<AttachmentNodeProps> = ({
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const attachments: AttachmentItem[] = node.data.attachments || [];
-  const verifiedCount = attachments.filter((a) => a.checked).length;
   const totalCount = attachments.length;
 
   const theme = getNodeColorTheme(node.color);
-
-  const toggleAttachment = (id: string) => {
-    const updated = attachments.map((att) =>
-      att.id === id ? { ...att, checked: !att.checked } : att
-    );
-    const verified = updated.filter((a) => a.checked).length;
-    const newPct = updated.length > 0 ? Math.round((verified / updated.length) * 100) : 0;
-    onUpdateData(node.id, { attachments: updated, progressPercent: newPct, currentValue: newPct });
-  };
 
   const addAttachment = () => {
     if (!nameInput.trim() || !urlInput.trim()) return;
@@ -71,10 +59,7 @@ export const AttachmentNode: React.FC<AttachmentNodeProps> = ({
     };
 
     const updated = [...attachments, newItem];
-    const verified = updated.filter((a) => a.checked).length;
-    const newPct = updated.length > 0 ? Math.round((verified / updated.length) * 100) : 0;
-
-    onUpdateData(node.id, { attachments: updated, progressPercent: newPct, currentValue: newPct });
+    onUpdateData(node.id, { attachments: updated, progressPercent: 0, currentValue: 0 });
     setNameInput('');
     setUrlInput('');
     setIsAdding(false);
@@ -82,9 +67,7 @@ export const AttachmentNode: React.FC<AttachmentNodeProps> = ({
 
   const removeAttachment = (id: string) => {
     const updated = attachments.filter((att) => att.id !== id);
-    const verified = updated.filter((a) => a.checked).length;
-    const newPct = updated.length > 0 ? Math.round((verified / updated.length) * 100) : 0;
-    onUpdateData(node.id, { attachments: updated, progressPercent: newPct, currentValue: newPct });
+    onUpdateData(node.id, { attachments: updated, progressPercent: 0, currentValue: 0 });
   };
 
   const handleTitleSubmit = () => {
@@ -165,15 +148,9 @@ export const AttachmentNode: React.FC<AttachmentNodeProps> = ({
           </div>
 
           <span className={`text-xs font-mono font-bold ${theme.badgeText} ${theme.badgeBg} border ${theme.badgeBorder} px-2 py-0.5 rounded-full shrink-0 ml-2`}>
-            {verifiedCount}/{totalCount}
+            {totalCount}
           </span>
         </div>
-
-        {/* Datas do Quadro */}
-        <NodeTimeFrame node={node} onUpdateData={onUpdateData} className="my-2" />
-
-        {/* Barra de Progresso */}
-        <NodeProgressBar node={node} onUpdateData={onUpdateData} className="my-2" />
 
         {/* Lista de Anexos */}
         <div className="space-y-1.5 my-3 max-h-[220px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-700">
@@ -185,25 +162,13 @@ export const AttachmentNode: React.FC<AttachmentNodeProps> = ({
             attachments.map((att) => (
               <div
                 key={att.id}
-                className={`group/item flex items-center justify-between p-2 rounded-lg border transition-all text-xs ${
-                  att.checked
-                    ? 'bg-slate-900/60 border-slate-700/60 text-slate-200'
-                    : 'bg-slate-950/40 border-slate-800/80 text-slate-400 opacity-80'
-                }`}
+                className="group/item flex items-center justify-between p-2 rounded-lg border bg-slate-900/60 border-slate-700/60 text-slate-200 transition-all text-xs"
               >
                 <div className="flex items-center gap-2 flex-1 min-w-0 mr-2">
-                  <input
-                    type="checkbox"
-                    checked={!!att.checked}
-                    onChange={() => toggleAttachment(att.id)}
-                    className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-900 text-cyan-500 focus:ring-cyan-500/20 cursor-pointer shrink-0"
-                    title={att.checked ? 'Marcado como Validade/Anexado' : 'Marcar como Validade/Anexado'}
-                  />
-                  
                   {renderTypeIcon(att.type)}
 
                   <div className="flex flex-col min-w-0 flex-1">
-                    <span className={`font-medium truncate ${att.checked ? 'text-slate-100' : 'text-slate-400 line-through'}`}>
+                    <span className="font-medium truncate text-slate-100">
                       {att.name}
                     </span>
                     <span className="text-[10px] text-slate-400 font-mono truncate hover:text-cyan-300" title={att.url}>

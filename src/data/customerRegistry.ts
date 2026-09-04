@@ -1,4 +1,3 @@
-import { saveSupabaseCustomer } from '../lib/supabase';
 
 export interface RegisteredCustomer {
   id: string;
@@ -306,8 +305,6 @@ export function saveCustomerToRegistry(
     console.error('Failed to save to localStorage:', err);
   }
 
-  // Asynchronously replicate to Supabase
-  saveSupabaseCustomer(updatedCustomer).catch(() => {});
 
   return updatedCustomer;
 }

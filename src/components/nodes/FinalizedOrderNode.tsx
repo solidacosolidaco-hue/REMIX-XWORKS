@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CanvasNode } from '../../types/canvas';
-import { CheckCircle2, PackageCheck, FileText, Receipt, Edit2, Calendar, Check, X, Clock } from 'lucide-react';
+import { CheckCircle2, PackageCheck, FileText, Receipt, Edit2, Calendar, Check, X, Clock, Eye, EyeOff } from 'lucide-react';
 
 interface FinalizedOrderNodeProps {
   node: CanvasNode;
@@ -15,6 +15,7 @@ export const FinalizedOrderNode: React.FC<FinalizedOrderNodeProps> = ({
 }) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDetails, setIsEditingDetails] = useState(false);
+  const [isPeekingValue, setIsPeekingValue] = useState(false);
 
   // Status state: 'Concluído' or 'Aguardando'
   const initialStatus = (node.data?.status === 'Aguardando' || node.data?.status === 'AGUARDANDO')
@@ -32,8 +33,10 @@ export const FinalizedOrderNode: React.FC<FinalizedOrderNodeProps> = ({
     node.data?.descriptiveOnly ||
     (node.data?.orderValue === 0 && !node.data?.totalOrderValue && !node.data?.value)
   );
+  const isHideValueOnly = Boolean(node.data?.hideValueOnly || node.data?.hideValue);
 
   const [isWithoutValueInput, setIsWithoutValueInput] = useState(isWithoutValue);
+  const [isHideValueOnlyInput, setIsHideValueOnlyInput] = useState(isHideValueOnly);
   const [valueInput, setValueInput] = useState(node.data?.totalOrderValue ?? node.data?.orderValue ?? node.data?.value ?? 412000);
   const [descriptiveNotesInput, setDescriptiveNotesInput] = useState(node.data?.descriptiveNotes || node.data?.notes || '');
   const [deliveryDeadlineInput, setDeliveryDeadlineInput] = useState(node.data?.deliveryDeadline || node.data?.deliveredDate || '2026-09-20');
@@ -81,6 +84,8 @@ export const FinalizedOrderNode: React.FC<FinalizedOrderNodeProps> = ({
         clientName: customerInput,
         withoutValue: isWithoutValueInput,
         descriptiveOnly: isWithoutValueInput,
+        hideValueOnly: isHideValueOnlyInput,
+        hideValue: isHideValueOnlyInput,
         orderValue: isWithoutValueInput ? 0 : Number(valueInput),
         totalOrderValue: isWithoutValueInput ? 0 : Number(valueInput),
         value: isWithoutValueInput ? 0 : Number(valueInput),
@@ -271,8 +276,8 @@ export const FinalizedOrderNode: React.FC<FinalizedOrderNodeProps> = ({
               />
             </div>
 
-            {/* Checkbox Sem Valor */}
-            <div className="p-2 bg-slate-900/90 rounded border border-slate-700/80 space-y-1.5">
+            {/* Checkbox Sem Valor e Ocultar Valor */}
+            <div className="p-2 bg-slate-900/90 rounded border border-slate-700/80 space-y-2">
               <label className="flex items-center gap-2 cursor-pointer select-none text-[10px] font-bold text-emerald-300">
                 <input
                   type="checkbox"
@@ -298,14 +303,33 @@ export const FinalizedOrderNode: React.FC<FinalizedOrderNodeProps> = ({
                   />
                 </div>
               ) : (
-                <div className="space-y-1 pt-1">
-                  <label className="text-[9px] uppercase tracking-tighter text-slate-400 font-bold">Valor Total Faturado (R$)</label>
-                  <input
-                    type="number"
-                    value={valueInput}
-                    onChange={(e) => setValueInput(Number(e.target.value))}
-                    className="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs w-full text-white focus:border-emerald-500 outline-none font-mono"
-                  />
+                <div className="space-y-2 pt-1">
+                  <div className="space-y-1">
+                    <label className="text-[9px] uppercase tracking-tighter text-slate-400 font-bold">Valor Total Faturado (R$)</label>
+                    <input
+                      type="number"
+                      value={valueInput}
+                      onChange={(e) => setValueInput(Number(e.target.value))}
+                      className="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs w-full text-white focus:border-emerald-500 outline-none font-mono"
+                    />
+                  </div>
+
+                  {/* OPÇÃO: OCULTAR O VALOR APENAS */}
+                  <div className="pt-1.5 border-t border-slate-800">
+                    <label className="flex items-center gap-2 cursor-pointer select-none text-[10px] font-bold text-amber-300 hover:text-amber-200 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={isHideValueOnlyInput}
+                        onChange={(e) => setIsHideValueOnlyInput(e.target.checked)}
+                        className="w-3.5 h-3.5 rounded bg-slate-950 border-slate-600 text-amber-500 focus:ring-0 cursor-pointer"
+                      />
+                      <EyeOff className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span>Ocultar o valor apenas</span>
+                    </label>
+                    <p className="text-[9px] text-slate-400 leading-tight pl-5 mt-0.5">
+                      Mantém o valor nos relatórios/totais, mas oculta a visualização no quadro (••••••).
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
@@ -357,29 +381,7 @@ export const FinalizedOrderNode: React.FC<FinalizedOrderNodeProps> = ({
               <Edit2 className="w-3 h-3 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
             </p>
 
-            {isWithoutValue ? (
-              <div className={`p-2 bg-slate-950/70 border rounded-lg text-left shadow-sm mb-2 ${
-                status === 'Concluído' ? 'border-emerald-500/30' : 'border-amber-500/30'
-              }`}>
-                <div className={`flex items-center gap-1.5 text-xs font-bold ${
-                  status === 'Concluído' ? 'text-emerald-300' : 'text-amber-300'
-                }`}>
-                  <FileText className="w-3.5 h-3.5 shrink-0" />
-                  <span>Pedido Informativo (Sem Valor Monetário)</span>
-                </div>
-                {node.data?.descriptiveNotes && (
-                  <p className="text-[10px] text-slate-300 mt-0.5 line-clamp-2 italic">
-                    "{node.data.descriptiveNotes}"
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div className={`text-xl font-bold font-mono mb-2 ${
-                status === 'Concluído' ? 'text-emerald-400' : 'text-amber-400'
-              }`}>
-                {formattedValue}
-              </div>
-            )}
+            {/* Valor do Pedido Finalizado omitted per user request */}
           </div>
         )}
 

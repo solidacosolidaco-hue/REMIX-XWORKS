@@ -60,8 +60,8 @@ export function getNodeDeadlineInfo(
   node: CanvasNode,
   simulatedDate: string = '2026-09-02'
 ): NodeDeadlineInfo {
-  // Quadro Base (ex: Cliente) é entidade cadastral e não possui cronograma nem alerta de prazo
-  if (node.type === 'customer') {
+  // Quadro Base ou Informativo (ex: Cliente, Anexo, Documento, Nota, Texto) não possui cronograma nem alerta de prazo
+  if (['customer', 'attachment', 'document', 'note', 'text'].includes(node.type)) {
     return {
       state: 'none',
       label: 'Quadro Base',
@@ -69,7 +69,7 @@ export function getNodeDeadlineInfo(
       daysRemaining: null,
       totalDays: null,
       timeElapsedPercent: 0,
-      reason: 'Quadro base cadastral sem cronograma operacional',
+      reason: 'Quadro base/informativo sem cronograma operacional',
     };
   }
 

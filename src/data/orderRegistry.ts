@@ -1,4 +1,3 @@
-import { saveSupabaseOrder } from '../lib/supabase';
 
 export interface OrderItem {
   id: string;
@@ -405,8 +404,6 @@ export function saveRegisteredOrder(orderData: Partial<RegisteredOrder> & { titl
     console.error('Failed to save to localStorage:', err);
   }
 
-  // Asynchronously replicate to Supabase
-  saveSupabaseOrder(updatedOrder).catch(() => {});
 
   return updatedOrder;
 }

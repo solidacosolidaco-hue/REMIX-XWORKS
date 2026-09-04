@@ -37,6 +37,7 @@ interface BoardTabBarProps {
   onDuplicateBoard: (boardId: string) => void;
   onDeleteBoard: (boardId: string) => void;
   onClearBoard: (boardId: string) => void;
+  onResetAllData?: () => void;
 }
 
 export const BoardTabBar: React.FC<BoardTabBarProps> = ({
@@ -54,6 +55,7 @@ export const BoardTabBar: React.FC<BoardTabBarProps> = ({
   onDuplicateBoard,
   onDeleteBoard,
   onClearBoard,
+  onResetAllData,
 }) => {
   const [editingBoardId, setEditingBoardId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -227,6 +229,8 @@ export const BoardTabBar: React.FC<BoardTabBarProps> = ({
             <span className="hidden sm:inline">Nova Lousa</span>
           </div>
         )}
+
+
       </div>
 
       {/* Dropdown Menu - rendered on top-level to prevent scrollbar clipping */}
@@ -298,44 +302,10 @@ export const BoardTabBar: React.FC<BoardTabBarProps> = ({
 
       {/* Board Summary Info & Theme Selector */}
       <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono shrink-0">
-        {/* Admin Filter by Employee */}
-        {currentUser?.role === 'admin' && allEmployees.length > 0 && onSelectEmployeeFilter && (
-          <div className="hidden md:flex items-center gap-1 bg-slate-900/90 border border-emerald-500/30 rounded-lg px-2 py-0.5 text-[11px]">
-            <Filter className="w-3 h-3 text-emerald-400 shrink-0" />
-            <span className="text-[10px] text-slate-400">Filtro:</span>
-            <select
-              value={selectedEmployeeFilter}
-              onChange={(e) => onSelectEmployeeFilter(e.target.value)}
-              className="bg-transparent text-emerald-300 text-[10px] font-semibold focus:outline-none cursor-pointer"
-            >
-              <option value="all" className="bg-slate-900 text-white">Todos os Quadros</option>
-              {allEmployees.map((emp) => (
-                <option key={emp.id} value={emp.id} className="bg-slate-900 text-white">
-                  {emp.name} {emp.username === 'ueliton' ? '(Admin)' : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
         <span className="hidden lg:inline text-slate-500">Total: {boards.length} Lousas</span>
 
         {onChangeTheme && (
           <div className="flex items-center gap-1 bg-slate-900/90 border border-white/10 rounded-lg p-0.5">
-            <button
-              id="theme-btn-white"
-              onClick={() => onChangeTheme('white')}
-              className={`px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 transition-all ${
-                theme === 'white' || theme === 'light'
-                  ? 'bg-white text-slate-950 shadow-sm'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5'
-              }`}
-              title="Fundo Branco"
-            >
-              <Sun className="w-3 h-3 text-amber-500" />
-              <span>Branco</span>
-            </button>
-
             <button
               id="theme-btn-black"
               onClick={() => onChangeTheme('black')}

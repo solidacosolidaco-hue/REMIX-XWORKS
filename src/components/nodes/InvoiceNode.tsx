@@ -109,15 +109,7 @@ export const InvoiceNode: React.FC<InvoiceNodeProps> = ({
         {/* Content Progress Bar */}
         <NodeProgressBar node={node} onUpdateData={onUpdateData} className="mb-2" />
 
-        {/* Invoice Value */}
-        <div className="p-2 bg-slate-950/50 rounded-lg border border-white/5 mb-2">
-          <span className="text-[9px] font-mono text-slate-400 uppercase tracking-wider block">
-            VALOR TOTAL DA NOTA
-          </span>
-          <div className="text-base font-bold text-emerald-400 font-mono">
-            {formattedValue}
-          </div>
-        </div>
+        {/* Invoice Value omitted per user request */}
       </div>
 
       {/* Footer Actions */}

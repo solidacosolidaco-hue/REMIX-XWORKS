@@ -45,14 +45,6 @@ import { BoardTabBar } from './components/panels/BoardTabBar';
 import { SimplifiedView } from './components/panels/SimplifiedView';
 import { CommercialTerminalModal } from './components/panels/CommercialTerminalModal';
 import { SectorReportModal } from './components/panels/SectorReportModal';
-import { SupabaseModal } from './components/panels/SupabaseModal';
-import {
-  checkSupabaseHealth,
-  saveSupabaseBoard,
-  deleteSupabaseBoard,
-  fetchSupabaseBoards,
-  syncAllBoardsToSupabase,
-} from './lib/supabase';
 import { synchronizeFlowData } from './utils/flowIntelligence';
 import { getUpstreamNodesForIndicator, calculateNodeProgress } from './utils/nodeProgress';
 import { calculateBoundingBox, resolveNodeCollisions } from './utils/geometry';
@@ -73,6 +65,10 @@ import {
   Database,
   Save,
   Check,
+  CheckCircle2,
+  Copy,
+  Scissors,
+  Clipboard,
   Loader2,
   Users,
   LogOut,
@@ -144,7 +140,14 @@ export function App() {
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
   const [canvasMode, setCanvasMode] = useState<CanvasMode>('select');
-  const [canvasTheme, setCanvasTheme] = useState<CanvasTheme>('black');
+  const [canvasTheme, setCanvasThemeRaw] = useState<CanvasTheme>('black');
+  const setCanvasTheme = (t: CanvasTheme) => {
+    if (t === 'white' || (t as string) === 'light') {
+      setCanvasThemeRaw('black');
+    } else {
+      setCanvasThemeRaw(t);
+    }
+  };
 
   // Investigation Mode
   const [investigatedNodeId, setInvestigatedNodeId] = useState<string | null>(null);
@@ -177,8 +180,35 @@ export function App() {
   const [inspectorHeight, setInspectorHeight] = useState(600);
   const [simulatedToday, setSimulatedToday] = useState<string>('2026-09-01');
   const [isAutopilotActive, setIsAutopilotActive] = useState<boolean>(false);
-  const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState<boolean>(false);
-  const [supabaseConnected, setSupabaseConnected] = useState<boolean>(false);
+  const isSupabaseModalOpen = false;
+  const supabaseConnected = false;
+
+  // Clipboard State for Copy, Cut & Paste
+  const [clipboard, setClipboard] = useState<{
+    nodes: CanvasNode[];
+    connections: Connection[];
+    isCut?: boolean;
+  } | null>(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('xcanvas_clipboard') : null;
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return null;
+  });
+
+  const [clipboardToast, setClipboardToast] = useState<{
+    message: string;
+    type: 'copy' | 'paste' | 'cut' | 'info';
+  } | null>(null);
+
+  useEffect(() => {
+    if (clipboardToast) {
+      const timer = setTimeout(() => {
+        setClipboardToast(null);
+      }, 3200);
+      return () => clearTimeout(timer);
+    }
+  }, [clipboardToast]);
 
   // User Authentication & Employee Management State
   const [currentUser, setCurrentUser] = useState<EmployeeUser | null>(() => getActiveSession());
@@ -239,30 +269,12 @@ export function App() {
         console.warn('Falha no backup local:', e);
       }
 
-      // 3. Persistir no Supabase
-      // Always attempt to save to Supabase when triggered manually.
-      // For auto-save, we only attempt if we know we are connected to avoid spamming errors.
-      if (!isAutoSave || supabaseConnected) {
-        const syncResult = await syncAllBoardsToSupabase(updatedBoards);
-        
-        if (syncResult.saved === 0) {
-          throw new Error('Falha ao salvar no banco (nenhuma lousa salva). Verifique sua conexão e se as tabelas foram criadas corretamente.');
-        } else if (syncResult.saved < syncResult.total) {
-          console.warn(`Atenção: Apenas ${syncResult.saved} de ${syncResult.total} lousas foram salvas.`);
-        }
-        
-        // If we successfully saved, ensure we mark as connected
-        if (!supabaseConnected) {
-          setSupabaseConnected(true);
-        }
-      }
-
       setSaveFeedback('saved');
       setTimeout(() => {
         setSaveFeedback('idle');
       }, 2500);
     } catch (err) {
-      console.error('Erro ao salvar no Supabase:', err);
+      console.error('Erro ao salvar localmente:', err);
       setSaveFeedback('error');
       setTimeout(() => {
         setSaveFeedback('idle');
@@ -337,10 +349,6 @@ export function App() {
             // Salva no LocalStorage
             localStorage.setItem('xcanvas_boards_backup', JSON.stringify(importedData.boards));
             
-            // Sincroniza com o Supabase se conectado
-            if (supabaseConnected) {
-              await syncAllBoardsToSupabase(importedData.boards);
-            }
 
             alert('Backup restaurado com sucesso!');
           } else {
@@ -357,16 +365,15 @@ export function App() {
   };
 
   // Auto-save effect
-  const autoSaveRefs = useRef({ boards, nodes, connections, viewport, canvasTheme, activeBoardId, supabaseConnected });
+  const autoSaveRefs = useRef({ boards, nodes, connections, viewport, canvasTheme, activeBoardId });
   useEffect(() => {
-    autoSaveRefs.current = { boards, nodes, connections, viewport, canvasTheme, activeBoardId, supabaseConnected };
-  }, [boards, nodes, connections, viewport, canvasTheme, activeBoardId, supabaseConnected]);
+    autoSaveRefs.current = { boards, nodes, connections, viewport, canvasTheme, activeBoardId };
+  }, [boards, nodes, connections, viewport, canvasTheme, activeBoardId]);
 
   useEffect(() => {
     // A cada 30 segundos, dispara o salvamento automático no fundo
     const interval = setInterval(async () => {
       const state = autoSaveRefs.current;
-      if (!state.supabaseConnected) return;
 
       const updatedBoards = state.boards.map((b) =>
         b.id === state.activeBoardId
@@ -383,7 +390,6 @@ export function App() {
       
       try {
         localStorage.setItem('xcanvas_boards_backup', JSON.stringify(updatedBoards));
-        await syncAllBoardsToSupabase(updatedBoards);
       } catch (e) {
         // Silently fail on background auto-save
       }
@@ -392,30 +398,6 @@ export function App() {
   }, []);
 
 
-  // Check Supabase connection health on mount
-  useEffect(() => {
-    let isMounted = true;
-    checkSupabaseHealth()
-      .then((status) => {
-        if (isMounted) {
-          setSupabaseConnected(status.connected);
-          if (status.connected && status.tables.boards) {
-            // If boards table exists in Supabase, check if there are remote boards to load
-            fetchSupabaseBoards().then((remoteBoards) => {
-              if (isMounted && remoteBoards && remoteBoards.length > 0) {
-                console.log(`[Supabase] ${remoteBoards.length} boards carregados do banco de dados.`);
-              }
-            });
-          }
-        }
-      })
-      .catch((err) => {
-        console.warn('[Supabase] Health check error:', err);
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   // Light Mode / Performance Mode state
   const [isLightMode, setIsLightMode] = useState<boolean>(() => {
@@ -1107,6 +1089,40 @@ export function App() {
     }
   };
 
+  const handleResetAllData = () => {
+    if (window.confirm('Tem certeza de que deseja APAGAR TUDO? Isso excluirá permanentemente todas as lousas, quadros, cartões e conexões.')) {
+      pushHistory();
+      
+      const newDefaultBoard: CanvasBoard = {
+        id: 'board-1',
+        name: 'Controle de Produção — Lousa Única',
+        nodes: [],
+        connections: [],
+        viewport: { x: 40, y: 20, scale: 0.6 },
+        createdAt: new Date().toLocaleDateString('pt-BR'),
+        userId: currentUser?.id || 'user-ueliton',
+        ownerName: currentUser?.name || 'Ueliton',
+        isShared: true,
+      };
+
+      setNodes([]);
+      setConnections([]);
+      setViewport({ x: 40, y: 20, scale: 0.6 });
+      setBoards([newDefaultBoard]);
+      setActiveBoardId('board-1');
+
+      try {
+        localStorage.removeItem('xcanvas_boards_backup');
+        localStorage.setItem('xcanvas_boards_backup', JSON.stringify([newDefaultBoard]));
+      } catch (e) {
+        console.warn('Erro ao salvar reset local:', e);
+      }
+      
+
+      alert('Tudo foi apagado com sucesso! Iniciando com uma lousa totalmente limpa.');
+    }
+  };
+
   const handleDeleteBoard = (boardId: string) => {
     const targetBoard = boards.find((b) => b.id === boardId);
     if (!targetBoard) return;
@@ -1636,6 +1652,20 @@ export function App() {
           activeMachineCount: 9,
         };
         break;
+      case 'interrupted_flow':
+        defaultName = 'Fluxo Interrompido';
+        defaultWidth = 360;
+        defaultHeight = 420;
+        defaultColor = 'rose';
+        defaultData = {
+          incidentDescription: 'Parada não planejada do processo por falha operacional.',
+          incidentDate: new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          incidentSector: 'Usinagem / Produção',
+          incidentResponsible: 'Líder de Turno',
+          incidentResolutionDate: 'Previsão: Hoje às 18:00',
+          isResolved: false,
+        };
+        break;
       case 'order':
         defaultName = 'Pedido';
         defaultWidth = 320;
@@ -1793,6 +1823,8 @@ export function App() {
     const fromNode = nodes.find((n) => n.id === fromId);
     const toNode = nodes.find((n) => n.id === toId);
 
+    const isInterruptedType = fromNode?.type === 'interrupted_flow' || toNode?.type === 'interrupted_flow';
+
     // Initial connection object
     let newConn: Connection = {
       id: `conn-${Date.now()}`,
@@ -1800,9 +1832,10 @@ export function App() {
       toId,
       fromHandle: fromHandle || 'right-2',
       toHandle: toHandle || 'left-2',
-      label: 'relacionado',
+      label: isInterruptedType ? 'Interrupção de Fluxo' : 'relacionado',
       lineStyle: 'curved',
-      color: '#38bdf8',
+      color: isInterruptedType ? '#f43f5e' : '#38bdf8',
+      strokePattern: isInterruptedType ? 'dashed' : 'solid',
       arrow: 'end',
       animated: true,
       autoSync: true, // Habilitar sincronização automática por padrão
@@ -1824,6 +1857,37 @@ export function App() {
         })
       );
     }
+
+    setConnections((prev) => [...prev, newConn]);
+    setSelectedConnectionId(newConn.id);
+  };
+
+  // Connect Node directly to an existing Connection Line
+  const handleConnectToLine = (
+    fromId: string,
+    targetConnectionId: string,
+    fromHandle?: ConnectionHandle
+  ) => {
+    pushHistory();
+    const targetConn = connections.find((c) => c.id === targetConnectionId);
+    if (!targetConn) return;
+
+    const fromNode = nodes.find((n) => n.id === fromId);
+
+    const newConn: Connection = {
+      id: `conn-${Date.now()}`,
+      fromId,
+      toId: targetConn.fromId,
+      toConnectionId: targetConnectionId,
+      fromHandle: fromHandle || 'bottom-2',
+      toHandle: 'top-2',
+      label: fromNode?.type === 'interrupted_flow' ? 'Interrupção de Fluxo' : 'Conectado à Linha',
+      lineStyle: 'curved',
+      color: fromNode?.type === 'interrupted_flow' ? '#f43f5e' : '#38bdf8',
+      strokePattern: fromNode?.type === 'interrupted_flow' ? 'dashed' : 'solid',
+      arrow: 'end',
+      animated: true,
+    };
 
     setConnections((prev) => [...prev, newConn]);
     setSelectedConnectionId(newConn.id);
@@ -2138,6 +2202,166 @@ export function App() {
     setSelectedNodeIds([newId]);
   };
 
+  // Copy Nodes to Clipboard (Ctrl+C)
+  const handleCopyNodes = useCallback((nodeIdsToCopy?: string[]) => {
+    const targetIds = (nodeIdsToCopy && nodeIdsToCopy.length > 0) ? nodeIdsToCopy : selectedNodeIds;
+    if (!targetIds || targetIds.length === 0) return;
+
+    const targetNodes = nodes.filter((n) => targetIds.includes(n.id));
+    if (targetNodes.length === 0) return;
+
+    const internalConns = connections.filter(
+      (c) => targetIds.includes(c.fromId) && targetIds.includes(c.toId)
+    );
+
+    const clonedNodes = JSON.parse(JSON.stringify(targetNodes));
+    const clonedConns = JSON.parse(JSON.stringify(internalConns));
+
+    const clipboardData = {
+      nodes: clonedNodes,
+      connections: clonedConns,
+      isCut: false,
+    };
+
+    setClipboard(clipboardData);
+    try {
+      localStorage.setItem('xcanvas_clipboard', JSON.stringify(clipboardData));
+    } catch {}
+
+    const nodeName = clonedNodes.length === 1 ? `"${clonedNodes[0].name}"` : `${clonedNodes.length} quadros`;
+    setClipboardToast({
+      message: `${nodeName} copiado${clonedNodes.length > 1 ? 's' : ''}! Pressione Ctrl+V ou use o botão direito para colar.`,
+      type: 'copy',
+    });
+  }, [nodes, connections, selectedNodeIds]);
+
+  // Cut Nodes to Clipboard (Ctrl+X)
+  const handleCutNodes = useCallback((nodeIdsToCut?: string[]) => {
+    const targetIds = (nodeIdsToCut && nodeIdsToCut.length > 0) ? nodeIdsToCut : selectedNodeIds;
+    if (!targetIds || targetIds.length === 0) return;
+
+    const targetNodes = nodes.filter((n) => targetIds.includes(n.id));
+    if (targetNodes.length === 0) return;
+
+    const internalConns = connections.filter(
+      (c) => targetIds.includes(c.fromId) && targetIds.includes(c.toId)
+    );
+
+    const clipboardData = {
+      nodes: JSON.parse(JSON.stringify(targetNodes)),
+      connections: JSON.parse(JSON.stringify(internalConns)),
+      isCut: true,
+    };
+
+    setClipboard(clipboardData);
+    try {
+      localStorage.setItem('xcanvas_clipboard', JSON.stringify(clipboardData));
+    } catch {}
+
+    pushHistory();
+    setNodes((prev) => prev.filter((n) => !targetIds.includes(n.id)));
+    setConnections((prev) => prev.filter((c) => !targetIds.includes(c.fromId) && !targetIds.includes(c.toId)));
+    setSelectedNodeIds([]);
+
+    const nodeName = targetNodes.length === 1 ? `"${targetNodes[0].name}"` : `${targetNodes.length} quadros`;
+    setClipboardToast({
+      message: `${nodeName} recortado${targetNodes.length > 1 ? 's' : ''}! Pressione Ctrl+V para colar na nova posição.`,
+      type: 'cut',
+    });
+  }, [nodes, connections, selectedNodeIds, pushHistory]);
+
+  // Paste Nodes from Clipboard (Ctrl+V)
+  const handlePasteNodes = useCallback((targetCanvasCoords?: { x: number; y: number }) => {
+    if (!clipboard || !clipboard.nodes || clipboard.nodes.length === 0) {
+      setClipboardToast({
+        message: 'Nenhum quadro na área de transferência. Selecione um quadro e pressione Ctrl+C.',
+        type: 'info',
+      });
+      return;
+    }
+
+    pushHistory();
+
+    const nodesToPaste = clipboard.nodes;
+    const connsToPaste = clipboard.connections || [];
+
+    const minX = Math.min(...nodesToPaste.map((n) => n.x));
+    const minY = Math.min(...nodesToPaste.map((n) => n.y));
+
+    let anchorX: number;
+    let anchorY: number;
+
+    if (targetCanvasCoords) {
+      anchorX = targetCanvasCoords.x;
+      anchorY = targetCanvasCoords.y;
+    } else {
+      anchorX = minX + 40;
+      anchorY = minY + 40;
+    }
+
+    const idMap = new Map<string, string>();
+    const timestamp = Date.now();
+
+    const newPastedNodes: CanvasNode[] = nodesToPaste.map((origNode, idx) => {
+      const newId = `node-${origNode.type}-${timestamp}-${idx}-${Math.floor(Math.random() * 1000)}`;
+      idMap.set(origNode.id, newId);
+
+      const relX = origNode.x - minX;
+      const relY = origNode.y - minY;
+      const posX = Math.round(anchorX + relX);
+      const posY = Math.round(anchorY + relY);
+
+      const clonedData = { ...origNode.data };
+      if (clonedData.budgetNumber) {
+        clonedData.budgetNumber = `${clonedData.budgetNumber}-C`;
+      }
+      if (clonedData.salesOrderNumber) {
+        clonedData.salesOrderNumber = `${clonedData.salesOrderNumber}-C`;
+      }
+
+      return {
+        ...origNode,
+        id: newId,
+        name: clipboard.isCut ? origNode.name : `${origNode.name} (Cópia)`,
+        x: posX,
+        y: posY,
+        data: clonedData,
+        createdAt: new Date().toLocaleDateString('pt-BR'),
+        updatedAt: new Date().toLocaleDateString('pt-BR'),
+        locked: false,
+      };
+    });
+
+    const newPastedConns: Connection[] = connsToPaste
+      .filter((c) => idMap.has(c.fromId) && idMap.has(c.toId))
+      .map((origConn, idx) => ({
+        ...origConn,
+        id: `conn-${timestamp}-${idx}-${Math.floor(Math.random() * 1000)}`,
+        fromId: idMap.get(origConn.fromId)!,
+        toId: idMap.get(origConn.toId)!,
+      }));
+
+    setNodes((prev) => [...prev, ...newPastedNodes]);
+    setConnections((prev) => [...prev, ...newPastedConns]);
+
+    const newIds = newPastedNodes.map((n) => n.id);
+    setSelectedNodeIds(newIds);
+    setSelectedConnectionId(null);
+
+    if (clipboard.isCut) {
+      const updatedClipboard = { ...clipboard, isCut: false };
+      setClipboard(updatedClipboard);
+      try {
+        localStorage.setItem('xcanvas_clipboard', JSON.stringify(updatedClipboard));
+      } catch {}
+    }
+
+    setClipboardToast({
+      message: `${newPastedNodes.length === 1 ? `Quadro "${newPastedNodes[0].name}"` : `${newPastedNodes.length} quadros`} colado${newPastedNodes.length > 1 ? 's' : ''}!`,
+      type: 'paste',
+    });
+  }, [clipboard, pushHistory]);
+
   const handleToggleLock = (nodeId: string) => {
     setNodes((prev) =>
       prev.map((n) => (n.id === nodeId ? { ...n, locked: !n.locked } : n))
@@ -2261,13 +2485,12 @@ export function App() {
     if (!currentUser) return [];
 
     if (currentUser.role === 'admin') {
-      if (selectedEmployeeFilter === 'all') return boards;
-      return boards.filter((b) => b.userId === selectedEmployeeFilter);
+      return boards;
     }
 
     // Funcionário regular: apenas seus quadros próprios ou quadros compartilhados
     return boards.filter((b) => b.userId === currentUser.id || b.isShared || !b.userId);
-  }, [boards, currentUser, selectedEmployeeFilter]);
+  }, [boards, currentUser]);
 
   // Keep activeBoardId aligned with visible boards
   useEffect(() => {
@@ -2343,108 +2566,24 @@ export function App() {
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           {/* Scrollable Action Buttons Bar */}
           <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-1">
-            {/* Gestão de Funcionários & Permissões (Exclusivo do Administrador Ueliton) */}
-            {currentUser && currentUser.username.toLowerCase() === 'ueliton' && (
-              <button
-                id="nav-btn-ueliton-manage-employees"
-                onClick={() => setIsUserManagementModalOpen(true)}
-                className="flex items-center gap-1.5 bg-emerald-600/25 hover:bg-emerald-600/40 text-emerald-300 hover:text-emerald-100 px-3 py-1.5 rounded-lg text-xs font-bold border border-emerald-500/40 transition-all shadow-sm whitespace-nowrap shrink-0 cursor-pointer"
-                title="Central de Gestão de Usuários: Somente Ueliton pode criar funcionários, nomear, conceder permissões e excluir"
-              >
-                <Shield className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span className="hidden md:inline">Gestão de Equipe (Ueliton)</span>
-              </button>
-            )}
 
-            {/* Cadastrar Funcionário Button */}
-            <button
-              id="nav-btn-employee"
-              onClick={() => setIsEmployeeModalOpen(true)}
-              className="flex items-center gap-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 hover:text-blue-200 px-3 py-1.5 rounded-lg text-xs font-semibold border border-blue-500/30 transition-all shadow-sm whitespace-nowrap shrink-0 cursor-pointer"
-              title="Cadastrar Funcionário / Central de Operadores e Encarregados"
-            >
-              <UserPlus className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-              <span className="hidden lg:inline">Funcionários</span>
-            </button>
-
-            {/* Produtos Cadastrados Button */}
-            <button
-              id="nav-btn-products-catalog"
-              onClick={() => setIsProductsCatalogOpen(true)}
-              className="flex items-center gap-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 hover:text-indigo-200 px-3 py-1.5 rounded-lg text-xs font-semibold border border-indigo-500/30 transition-all shadow-sm whitespace-nowrap shrink-0 cursor-pointer"
-              title="Catálogo de Produtos Cadastrados (Selecionar e Inserir ou Vincular)"
-            >
-              <Package className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-              <span className="hidden lg:inline">Produtos</span>
-            </button>
-
-            {/* Emitir Nota Fiscal Button */}
-            {/* Botão Terminal Comercial */}
-            <button
-              id="nav-btn-commercial"
-              onClick={() => setIsCommercialTerminalOpen(true)}
-              className="flex items-center gap-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 hover:text-blue-200 px-3 py-1.5 rounded-lg text-xs font-semibold border border-blue-500/30 transition-all shadow-sm whitespace-nowrap shrink-0 cursor-pointer"
-              title="Terminal Comercial (Vendas e Pedidos)"
-            >
-              <ShoppingCart className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-              <span className="hidden sm:inline">Terminal Comercial</span>
-            </button>
-
-            {/* Botão de Salvar */}
-            <button
-              id="nav-btn-save"
-              onClick={() => handleSave(false)}
-              disabled={isSaving}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold border transition-all shadow-sm whitespace-nowrap shrink-0 cursor-pointer ${
-                saveFeedback === 'saved'
-                  ? 'bg-emerald-600 text-white border-emerald-500 shadow-emerald-600/30'
-                  : saveFeedback === 'saving'
-                  ? 'bg-emerald-950/60 text-emerald-300 border-emerald-500/40 opacity-80'
-                  : saveFeedback === 'error'
-                  ? 'bg-amber-600 text-white border-amber-500'
-                  : 'bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 hover:text-emerald-100 border-emerald-500/30'
-              }`}
-              title="Salvar alterações no banco de dados e localmente"
-            >
-              {saveFeedback === 'saving' ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 text-emerald-300 animate-spin shrink-0" />
-                  <span>Salvando...</span>
-                </>
-              ) : saveFeedback === 'saved' ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-white shrink-0" />
-                  <span>Salvo!</span>
-                </>
-              ) : (
-                <>
-                  <Save className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span>Salvar</span>
-                  {supabaseConnected && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" title="Banco de dados conectado" />
-                  )}
-                </>
-              )}
-            </button>
 
             {/* Backup/Restore Buttons */}
             <div className="flex items-center bg-slate-800/30 rounded-lg p-0.5 border border-white/5">
               <button
                 onClick={handleImportDataTrigger}
-                className="flex items-center gap-1.5 hover:bg-slate-700/50 text-slate-300 hover:text-white px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer"
-                title="Abrir backup do computador"
+                className="flex items-center justify-center hover:bg-slate-700/50 text-slate-300 hover:text-white p-1.5 rounded-md text-[11px] font-medium transition-all cursor-pointer"
+                title="Restaurar backup do computador"
               >
-                <Upload className="w-3 h-3 shrink-0" />
-                <span className="hidden sm:inline">Restaurar</span>
+                <Upload className="w-3.5 h-3.5 shrink-0" />
               </button>
               <div className="w-[1px] h-3.5 bg-white/10 mx-0.5"></div>
               <button
                 onClick={handleExportData}
-                className="flex items-center gap-1.5 hover:bg-slate-700/50 text-slate-300 hover:text-white px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer"
-                title="Salvar backup no computador"
+                className="flex items-center justify-center hover:bg-slate-700/50 text-slate-300 hover:text-white p-1.5 rounded-md text-[11px] font-medium transition-all cursor-pointer"
+                title="Fazer backup no computador"
               >
-                <Download className="w-3 h-3 shrink-0" />
-                <span className="hidden sm:inline">Backup</span>
+                <Download className="w-3.5 h-3.5 shrink-0" />
               </button>
             </div>
 
@@ -2459,16 +2598,7 @@ export function App() {
               <span className="hidden md:inline">Modelos</span>
             </button>
 
-            {/* Presentation Mode Button */}
-            <button
-              id="nav-btn-presentation"
-              onClick={handleStartPresentation}
-              className="flex items-center gap-1.5 bg-slate-800/50 hover:bg-slate-800 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg text-xs font-medium border border-white/5 transition-all whitespace-nowrap shrink-0 cursor-pointer"
-              title="Iniciar Apresentação do Canvas"
-            >
-              <Play className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              <span className="hidden md:inline">Apresentar</span>
-            </button>
+
           </div>
 
           <div className="h-5 w-[1px] bg-white/10 hidden sm:block shrink-0" />
@@ -2591,8 +2721,6 @@ export function App() {
           theme={canvasTheme}
           currentUser={currentUser}
           allEmployees={allEmployees}
-          selectedEmployeeFilter={selectedEmployeeFilter}
-          onSelectEmployeeFilter={setSelectedEmployeeFilter}
           onChangeTheme={setCanvasTheme}
           onSelectBoard={handleSelectBoard}
           onAddBoard={handleAddBoard}
@@ -2600,6 +2728,7 @@ export function App() {
           onDuplicateBoard={handleDuplicateBoard}
           onDeleteBoard={handleDeleteBoard}
           onClearBoard={handleClearBoard}
+          onResetAllData={handleResetAllData}
         />
       )}
 
@@ -2671,9 +2800,14 @@ export function App() {
               onUpdateNodeTitle={handleUpdateNodeTitle}
               onUpdateNode={handleUpdateNode}
               onDuplicateNode={handleDuplicateNode}
+              onCopyNodes={handleCopyNodes}
+              onCutNodes={handleCutNodes}
+              onPasteNodes={handlePasteNodes}
+              clipboardCount={clipboard?.nodes.length || 0}
               onConvertToOrder={handleConvertToOrder}
               onToggleLock={handleToggleLock}
               onConnectNodes={handleConnectNodes}
+              onConnectToLine={handleConnectToLine}
               onDeleteConnection={handleDeleteConnection}
               onOpenSearch={() => setIsSearchOpen(true)}
               onOpenAI={() => setIsAIOpen(true)}
@@ -2742,6 +2876,7 @@ export function App() {
               onOpenInvoiceModal={handleOpenInvoiceModal}
               onExpandNode={handleOpenNodeDetail}
               onDuplicateNode={handleDuplicateNode}
+              onCopyNode={(id) => handleCopyNodes([id])}
               onSyncConnectionData={handleSyncConnectionData}
             />
           </motion.aside>
@@ -2840,6 +2975,7 @@ export function App() {
         }}
         onUpdateNode={handleUpdateFullNode}
         onDuplicateNode={handleDuplicateNode}
+        onCopyNode={(id) => handleCopyNodes([id])}
         onDeleteNode={(id) => {
           pushHistory();
           setNodes((prev) => prev.filter((n) => n.id !== id));
@@ -2891,23 +3027,6 @@ export function App() {
         connections={connections}
       />
 
-      {/* Supabase Database Integration & Sync Modal */}
-      <SupabaseModal
-        isOpen={isSupabaseModalOpen}
-        onClose={() => setIsSupabaseModalOpen(false)}
-        boards={renderedBoards}
-        onBoardsLoadedFromSupabase={(loadedBoards) => {
-          if (loadedBoards && loadedBoards.length > 0) {
-            setBoards(loadedBoards);
-            const first = loadedBoards[0];
-            setActiveBoardId(first.id);
-            setNodes(first.nodes);
-            setConnections(first.connections);
-            setViewport(first.viewport);
-            if (first.theme) setCanvasTheme(first.theme);
-          }
-        }}
-      />
 
       {/* Simplified Executive View Layer */}
       <AnimatePresence>
@@ -2922,6 +3041,34 @@ export function App() {
               setIsSimplifiedViewOpen(false);
             }}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Floating Clipboard Action Feedback Toast */}
+      <AnimatePresence>
+        {clipboardToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[999] pointer-events-none"
+          >
+            <div className={`px-4 py-2.5 rounded-2xl shadow-2xl backdrop-blur-xl border flex items-center gap-3 text-xs font-medium font-sans ${
+              clipboardToast.type === 'copy'
+                ? 'bg-sky-950/90 border-sky-500/40 text-sky-200 shadow-sky-950/50'
+                : clipboardToast.type === 'cut'
+                ? 'bg-amber-950/90 border-amber-500/40 text-amber-200 shadow-amber-950/50'
+                : clipboardToast.type === 'paste'
+                ? 'bg-emerald-950/90 border-emerald-500/40 text-emerald-200 shadow-emerald-950/50'
+                : 'bg-slate-900/90 border-slate-700/60 text-slate-200 shadow-slate-950/50'
+            }`}>
+              {clipboardToast.type === 'copy' && <Copy className="w-4 h-4 text-sky-400 shrink-0" />}
+              {clipboardToast.type === 'cut' && <Scissors className="w-4 h-4 text-amber-400 shrink-0" />}
+              {clipboardToast.type === 'paste' && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
+              {clipboardToast.type === 'info' && <Clipboard className="w-4 h-4 text-slate-400 shrink-0" />}
+              <span>{clipboardToast.message}</span>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 

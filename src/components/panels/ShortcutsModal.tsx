@@ -15,6 +15,10 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({
   const shortcuts = [
     { key: 'V / Esc', desc: 'Modo Selecionar / Mover Objetos' },
     { key: 'Espaço + Arrastar', desc: 'Arrastar Canvas (Pan Livre)' },
+    { key: 'Ctrl + C', desc: 'Copiar Quadro(s) Selecionado(s)' },
+    { key: 'Ctrl + V', desc: 'Colar Quadro(s) Copiado(s)' },
+    { key: 'Ctrl + X', desc: 'Recortar Quadro(s)' },
+    { key: 'Ctrl + D', desc: 'Duplicar Objeto Imediatamente' },
     { key: 'C', desc: 'Modo Conectar (Ligar Nós)' },
     { key: 'Ctrl + K', desc: 'Busca Global & Filtros' },
     { key: 'F', desc: 'Ajustar Canvas na Tela (Fit View)' },
@@ -22,9 +26,8 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({
     { key: 'Ctrl + Z', desc: 'Desfazer Última Ação' },
     { key: 'Ctrl + Y', desc: 'Refazer Ação' },
     { key: 'Del / Backspace', desc: 'Excluir Objeto Selecionado' },
-    { key: 'Ctrl + D', desc: 'Duplicar Objeto' },
     { key: 'Duplo Clique', desc: 'Editar Texto / Nota' },
-    { key: 'Botão Direito', desc: 'Menu de Contexto (Novo Objeto)' },
+    { key: 'Botão Direito', desc: 'Menu de Contexto (Ações e Novos Objetos)' },
   ];
 
   return (

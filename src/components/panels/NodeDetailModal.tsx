@@ -5,7 +5,8 @@ import {
   Layers, FileText, Wrench, ShieldCheck, Clock, Link2, Building2, Search, 
   Plus, MapPin, Phone, Mail, Globe, CreditCard, Briefcase, Check, 
   AlertCircle, Database, Sparkles, ChevronDown, CheckCheck, RefreshCw, FileCheck,
-  ShoppingCart, Receipt, Truck, Percent, Calculator, ArrowRightLeft, Package
+  ShoppingCart, Receipt, Truck, Percent, Calculator, ArrowRightLeft, Package,
+  Eye, EyeOff
 } from 'lucide-react';
 import { 
   getRegisteredCustomers, 
@@ -29,6 +30,7 @@ interface NodeDetailModalProps {
   onClose: () => void;
   onUpdateNode: (updatedNode: CanvasNode) => void;
   onDuplicateNode: (nodeId: string) => void;
+  onCopyNode?: (nodeId: string) => void;
   onDeleteNode: (nodeId: string) => void;
 }
 
@@ -40,6 +42,7 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({
   onClose,
   onUpdateNode,
   onDuplicateNode,
+  onCopyNode,
   onDeleteNode,
 }) => {
   const node = nodes.find((n) => n.id === nodeId);
@@ -587,53 +590,10 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({
     let finalName = name;
 
     if (nodeType === 'customer') {
-      const composedAddr = nodeData.street
-        ? `${nodeData.street}${nodeData.number ? ', ' + nodeData.number : ''}${nodeData.neighborhood ? ' - ' + nodeData.neighborhood : ''} - ${nodeData.city || 'São Paulo'}, ${nodeData.state || 'SP'}`
-        : (nodeData.address || `${nodeData.city || 'São Paulo'} - ${nodeData.state || 'SP'}`);
-
-      finalName = nodeData.tradeName || nodeData.corporateName || name || 'Novo Cliente';
-      finalData.address = composedAddr;
-      finalData.personType = customerPersonType;
-      finalData.tradeName = nodeData.tradeName || finalName;
-      finalData.corporateName = nodeData.corporateName || finalName;
-      finalData.city = nodeData.city || 'São Paulo';
-      finalData.state = nodeData.state || 'SP';
-
-      if (saveToRegistry) {
-        const savedCustomer = saveCustomerToRegistry({
-          id: nodeData.registeredCustomerId,
-          name: finalName,
-          corporateName: finalData.corporateName,
-          tradeName: finalData.tradeName,
-          cnpj: nodeData.cnpj || '00.000.000/0001-00',
-          personType: customerPersonType,
-          stateRegistration: nodeData.stateRegistration,
-          municipalRegistration: nodeData.municipalRegistration,
-          customerSegment: nodeData.customerSegment || 'Manufatura & Indústria',
-          status: (status as any) || 'Ativo',
-          contactName: nodeData.contactName || 'Contato Comercial',
-          contactRole: nodeData.contactRole,
-          phone: nodeData.phone,
-          cellphone: nodeData.cellphone,
-          email: nodeData.email || '',
-          billingEmail: nodeData.billingEmail,
-          website: nodeData.website,
-          zipCode: nodeData.zipCode,
-          street: nodeData.street,
-          number: nodeData.number,
-          complement: nodeData.complement,
-          neighborhood: nodeData.neighborhood,
-          city: nodeData.city || 'São Paulo',
-          state: nodeData.state || 'SP',
-          address: composedAddr,
-          paymentTerm: nodeData.paymentTerm || '30 DDL',
-          creditLimit: Number(nodeData.creditLimit) || 0,
-          totalRevenue: nodeData.totalRevenue || 'R$ 0',
-          ordersCount: Number(nodeData.ordersCount) || 1,
-          notes: nodeData.notes || '',
-        });
-        finalData.registeredCustomerId = savedCustomer.id;
-      }
+      finalName = name || 'Novo Cliente';
+      finalData.tradeName = finalName;
+      finalData.corporateName = finalName;
+      finalData.notes = nodeData.notes || '';
     }
 
     if (nodeType === 'order' || nodeType === 'budget') {
@@ -718,6 +678,17 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({
 
   const handleDataChange = (key: string, value: any) => {
     setNodeData((prev) => ({ ...prev, [key]: value }));
+
+    if (key === 'budgetNumber' && value) {
+      const found = registeredOrders.find(
+        (o) => o.budgetNumber && o.budgetNumber.trim().toLowerCase() === String(value).trim().toLowerCase()
+      );
+      if (found) {
+        setTimeout(() => {
+          handleSelectRegisteredOrder(found);
+        }, 10);
+      }
+    }
   };
 
   const startDate = nodeData.startDate || nodeData.deliveryDeadline || '01/09/2026';
@@ -801,667 +772,84 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({
         {/* Scrollable Body */}
         <div className="p-6 overflow-y-auto space-y-5 text-slate-200 text-sm">
           {nodeType === 'customer' ? (
-            <div className="space-y-4">
-              {/* Customer Search & Quick Register Bar */}
-              <div className="p-4 rounded-xl bg-slate-950/80 border border-blue-500/30 space-y-3 relative">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-blue-400" />
-                    <span className="text-xs font-bold text-white uppercase tracking-wider">
-                      Base Central de Clientes
-                    </span>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                      {registeredCustomers.length} cadastrados
-                    </span>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleResetToNewCustomer}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 transition-colors w-fit"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-                    + Cadastrar Novo Cliente em Branco
-                  </button>
+            <div className="space-y-5">
+              {/* Informações Básicas */}
+              <div className="p-5 rounded-xl bg-slate-950/40 border border-slate-800 space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-800/60">
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">
+                    Informações Básicas do Cliente
+                  </span>
                 </div>
 
-                {/* Search Input with dropdown */}
-                <div className="relative">
-                  <div className="relative">
-                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <div>
+                  <label className="block text-xs font-mono font-semibold text-slate-300 mb-1.5 uppercase">
+                    Nome do Cliente / Empresa *
+                  </label>
+                  <input
+                    id="customer-name-simplified"
+                    type="text"
+                    value={name}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      handleDataChange('tradeName', e.target.value);
+                      handleDataChange('corporateName', e.target.value);
+                    }}
+                    placeholder="Ex: Empresa ABC S/A"
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-mono font-semibold text-slate-300 mb-1.5 uppercase">
+                      Responsável / Vendedor
+                    </label>
                     <input
+                      id="customer-assignee-simplified"
                       type="text"
-                      value={customerSearchQuery}
-                      onChange={(e) => {
-                        setCustomerSearchQuery(e.target.value);
-                        setIsCustomerSearchOpen(true);
-                      }}
-                      onFocus={() => setIsCustomerSearchOpen(true)}
-                      placeholder="Buscar cliente cadastrado por Nome Fantasia, Razão Social, CNPJ, Cidade ou Segmento..."
-                      className="w-full bg-slate-900 border border-slate-700/80 focus:border-blue-500 rounded-xl pl-9 pr-24 py-2 text-xs text-white placeholder-slate-500 focus:outline-none transition-colors"
+                      value={assignee}
+                      onChange={(e) => setAssignee(e.target.value)}
+                      placeholder="Ex: Carlos Silva"
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 transition-colors"
                     />
-                    <button
-                      type="button"
-                      onClick={() => setIsCustomerSearchOpen(!isCustomerSearchOpen)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-[10px] font-semibold text-slate-300 hover:text-white bg-slate-800 rounded flex items-center gap-1"
-                    >
-                      Ver Lista <ChevronDown className={`w-3 h-3 transition-transform ${isCustomerSearchOpen ? 'rotate-180' : ''}`} />
-                    </button>
-                  </div>
-
-                  {/* Dropdown Results */}
-                  {isCustomerSearchOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-1.5 z-50 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-h-64 overflow-y-auto divide-y divide-slate-800">
-                      <div className="p-2 bg-slate-950/90 text-[11px] font-semibold text-slate-400 flex items-center justify-between">
-                        <span>Selecione para preencher este quadro com os dados cadastrais:</span>
-                        <button
-                          type="button"
-                          onClick={() => setIsCustomerSearchOpen(false)}
-                          className="text-slate-400 hover:text-white text-xs"
-                        >
-                          Fechar
-                        </button>
-                      </div>
-                      {filteredRegisteredCustomers.length === 0 ? (
-                        <div className="p-4 text-center text-xs text-slate-400">
-                          Nenhum cliente encontrado para "{customerSearchQuery}".
-                          <button
-                            type="button"
-                            onClick={handleResetToNewCustomer}
-                            className="block mx-auto mt-2 text-blue-400 hover:underline text-xs"
-                          >
-                            Cadastrar como novo cliente
-                          </button>
-                        </div>
-                      ) : (
-                        filteredRegisteredCustomers.map((c) => (
-                          <button
-                            key={c.id}
-                            type="button"
-                            onClick={() => handleSelectRegisteredCustomer(c)}
-                            className="w-full text-left p-3 hover:bg-blue-600/10 transition-colors flex items-start justify-between gap-3 group"
-                          >
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold text-xs text-white group-hover:text-blue-300">
-                                  {c.tradeName || c.name}
-                                </span>
-                                <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                                  {c.personType}
-                                </span>
-                                <span className="text-[10px] text-emerald-400 font-mono">
-                                  {c.status}
-                                </span>
-                              </div>
-                              <div className="text-[11px] text-slate-400 truncate mt-0.5">
-                                {c.corporateName}
-                              </div>
-                              <div className="text-[10px] font-mono text-slate-500 mt-0.5 flex flex-wrap items-center gap-3">
-                                <span>CNPJ: {c.cnpj}</span>
-                                <span>📍 {c.city}/{c.state}</span>
-                                <span>🏷️ {c.customerSegment}</span>
-                                <span>👤 {c.contactName}</span>
-                              </div>
-                            </div>
-                            <div className="shrink-0 flex items-center gap-1 text-[11px] font-semibold text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                              <Check className="w-3 h-3" /> Preencher
-                            </div>
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {loadedCustomerFeedback && (
-                  <div className="p-2.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2 animate-in fade-in">
-                    <CheckCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <span>{loadedCustomerFeedback}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* 4 Tabs Selector */}
-              <div className="flex border-b border-slate-800 gap-1 overflow-x-auto pb-1">
-                <button
-                  type="button"
-                  onClick={() => setCustomerActiveTab('identificacao')}
-                  className={`px-3 py-2 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors whitespace-nowrap ${
-                    customerActiveTab === 'identificacao'
-                      ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-                  }`}
-                >
-                  <Building2 className="w-3.5 h-3.5" />
-                  1. Identificação & Fiscal
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setCustomerActiveTab('contato')}
-                  className={`px-3 py-2 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors whitespace-nowrap ${
-                    customerActiveTab === 'contato'
-                      ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-                  }`}
-                >
-                  <User className="w-3.5 h-3.5" />
-                  2. Contatos & Comunicação
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setCustomerActiveTab('endereco')}
-                  className={`px-3 py-2 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors whitespace-nowrap ${
-                    customerActiveTab === 'endereco'
-                      ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-                  }`}
-                >
-                  <MapPin className="w-3.5 h-3.5" />
-                  3. Endereço Completo
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setCustomerActiveTab('comercial')}
-                  className={`px-3 py-2 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors whitespace-nowrap ${
-                    customerActiveTab === 'comercial'
-                      ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-                  }`}
-                >
-                  <Briefcase className="w-3.5 h-3.5" />
-                  4. Comercial & Observações
-                </button>
-              </div>
-
-              {/* Tab 1: Identificação & Fiscal */}
-              {customerActiveTab === 'identificacao' && (
-                <div className="space-y-4 p-4 rounded-xl bg-slate-950/40 border border-slate-800/80">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-mono font-semibold text-slate-300 mb-1">
-                        Razão Social (Nome Oficial) *
-                      </label>
-                      <input
-                        type="text"
-                        value={nodeData.corporateName || ''}
-                        onChange={(e) => {
-                          handleDataChange('corporateName', e.target.value);
-                          if (!name || name === 'Cliente' || name === 'Novo Cliente') {
-                            setName(e.target.value);
-                          }
-                        }}
-                        placeholder="Ex: Indústrias Metalúrgicas Alvorada Ltda"
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-mono font-semibold text-slate-300 mb-1">
-                        Nome Fantasia (Exibição no Quadro) *
-                      </label>
-                      <input
-                        type="text"
-                        value={nodeData.tradeName || name || ''}
-                        onChange={(e) => {
-                          setName(e.target.value);
-                          handleDataChange('tradeName', e.target.value);
-                        }}
-                        placeholder="Ex: Metalúrgica Alvorada"
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-xs font-mono font-semibold text-slate-300 mb-1">
-                        Tipo de Pessoa
-                      </label>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCustomerPersonType('PJ');
-                            handleDataChange('personType', 'PJ');
-                          }}
-                          className={`flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
-                            customerPersonType === 'PJ'
-                              ? 'bg-blue-600 text-white border-blue-500'
-                              : 'bg-slate-900 text-slate-400 border-slate-700'
-                          }`}
-                        >
-                          Pessoa Jurídica (PJ)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCustomerPersonType('PF');
-                            handleDataChange('personType', 'PF');
-                          }}
-                          className={`flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
-                            customerPersonType === 'PF'
-                              ? 'bg-blue-600 text-white border-blue-500'
-                              : 'bg-slate-900 text-slate-400 border-slate-700'
-                          }`}
-                        >
-                          Pessoa Física (PF)
-                        </button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-mono font-semibold text-slate-300 mb-1">
-                        {customerPersonType === 'PJ' ? 'CNPJ' : 'CPF'} *
-                      </label>
-                      <input
-                        type="text"
-                        value={nodeData.cnpj || ''}
-                        onChange={(e) => handleDataChange('cnpj', e.target.value)}
-                        placeholder={customerPersonType === 'PJ' ? '00.000.000/0001-00' : '000.000.000-00'}
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-mono font-semibold text-slate-300 mb-1">
-                        Inscrição Estadual (IE)
-                      </label>
-                      <input
-                        type="text"
-                        value={nodeData.stateRegistration || ''}
-                        onChange={(e) => handleDataChange('stateRegistration', e.target.value)}
-                        placeholder="Ex: 112.334.556.789 ou Isento"
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-mono font-semibold text-slate-300 mb-1">
-                        Inscrição Municipal (IM)
-                      </label>
-                      <input
-                        type="text"
-                        value={nodeData.municipalRegistration || ''}
-                        onChange={(e) => handleDataChange('municipalRegistration', e.target.value)}
-                        placeholder="Ex: 987654-0"
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-mono font-semibold text-slate-300 mb-1">
-                        Ramo de Atuação / Segmento
-                      </label>
-                      <input
-                        list="customer-segments-list"
-                        type="text"
-                        value={nodeData.customerSegment || ''}
-                        onChange={(e) => handleDataChange('customerSegment', e.target.value)}
-                        placeholder="Ex: Manufatura & Metalmecânica"
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
-                      />
-                      <datalist id="customer-segments-list">
-                        <option value="Manufatura & Metalmecânica" />
-                        <option value="Usinagem & Caldeiraria" />
-                        <option value="Construção Civil & Infraestrutura" />
-                        <option value="Automação Industrial & Robótica" />
-                        <option value="Máquinas & Implementos Agrícolas" />
-                        <option value="Indústria Automotiva & Autopeças" />
-                        <option value="Alimentos & Bebidas" />
-                        <option value="Química & Petroquímica" />
-                        <option value="Papel, Celulose & Embalagens" />
-                        <option value="Distribuição & Logística" />
-                      </datalist>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Tab 2: Contatos & Comunicação */}
-              {customerActiveTab === 'contato' && (
-                <div className="space-y-4 p-4 rounded-xl bg-slate-950/40 border border-slate-800/80">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-mono font-semibold text-slate-300 mb-1 flex items-center gap-1.5">
-                        <User className="w-3.5 h-3.5 text-blue-400" /> Contato Principal (Nome)
-                      </label>
-                      <input
-                        type="text"
-                        value={nodeData.contactName || ''}
-                        onChange={(e) => handleDataChange('contactName', e.target.value)}
-                        placeholder="Ex: Carlos Eduardo de Oliveira"
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-mono font-semibold text-slate-300 mb-1">
-                        Cargo / Departamento
-                      </label>
-                      <input
-                        type="text"
-                        value={nodeData.contactRole || ''}
-                        onChange={(e) => handleDataChange('contactRole', e.target.value)}
-                        placeholder="Ex: Gerente de Compras & Suprimentos"
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-mono font-semibold text-slate-300 mb-1 flex items-center gap-1.5">
-                        <Phone className="w-3.5 h-3.5 text-emerald-400" /> Telefone Comercial Fixo
-                      </label>
-                      <input
-                        type="text"
-                        value={nodeData.phone || ''}
-                        onChange={(e) => handleDataChange('phone', e.target.value)}
-                        placeholder="Ex: (11) 3456-7890"
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-mono font-semibold text-slate-300 mb-1 flex items-center gap-1.5">
-                        <Phone className="w-3.5 h-3.5 text-emerald-400" /> Celular / WhatsApp
-                      </label>
-                      <input
-                        type="text"
-                        value={nodeData.cellphone || ''}
-                        onChange={(e) => handleDataChange('cellphone', e.target.value)}
-                        placeholder="Ex: (11) 98765-4321"
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-mono font-semibold text-slate-300 mb-1 flex items-center gap-1.5">
-                        <Mail className="w-3.5 h-3.5 text-blue-400" /> E-mail Comercial / Cotações
-                      </label>
-                      <input
-                        type="email"
-                        value={nodeData.email || ''}
-                        onChange={(e) => handleDataChange('email', e.target.value)}
-                        placeholder="compras@cliente.com.br"
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-mono font-semibold text-slate-300 mb-1 flex items-center gap-1.5">
-                        <FileCheck className="w-3.5 h-3.5 text-purple-400" /> E-mail Financeiro / XML NF-e
-                      </label>
-                      <input
-                        type="email"
-                        value={nodeData.billingEmail || ''}
-                        onChange={(e) => handleDataChange('billingEmail', e.target.value)}
-                        placeholder="nfe@cliente.com.br"
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-mono font-semibold text-slate-300 mb-1 flex items-center gap-1.5">
-                        <Globe className="w-3.5 h-3.5 text-cyan-400" /> Website / Portal
-                      </label>
-                      <input
-                        type="text"
-                        value={nodeData.website || ''}
-                        onChange={(e) => handleDataChange('website', e.target.value)}
-                        placeholder="https://www.cliente.com.br"
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-mono font-semibold text-slate-300 mb-1 flex items-center gap-1.5">
-                        <User className="w-3.5 h-3.5 text-blue-400" /> Responsável Interno (Assignee / Vendedor)
-                      </label>
-                      <input
-                        type="text"
-                        value={assignee}
-                        onChange={(e) => setAssignee(e.target.value)}
-                        placeholder="Ex: Roberto Mendes (Comercial Interno)"
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Tab 3: Endereço Completo */}
-              {customerActiveTab === 'endereco' && (
-                <div className="space-y-4 p-4 rounded-xl bg-slate-950/40 border border-slate-800/80">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-xs font-mono font-semibold text-slate-300 mb-1 flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-amber-400" /> CEP
-                      </label>
-                      <input
-                        type="text"
-                        value={nodeData.zipCode || ''}
-                        onChange={(e) => handleDataChange('zipCode', e.target.value)}
-                        placeholder="00000-000"
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div className="sm:col-span-2">
-                      <label className="block text-xs font-mono font-semibold text-slate-300 mb-1">
-                        Logradouro (Rua, Avenida, Rodovia)
-                      </label>
-                      <input
-                        type="text"
-                        value={nodeData.street || ''}
-                        onChange={(e) => handleDataChange('street', e.target.value)}
-                        placeholder="Ex: Av. das Indústrias Metalúrgicas"
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-xs font-mono font-semibold text-slate-300 mb-1">
-                        Número
-                      </label>
-                      <input
-                        type="text"
-                        value={nodeData.number || ''}
-                        onChange={(e) => handleDataChange('number', e.target.value)}
-                        placeholder="Ex: 1500 ou S/N"
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-mono font-semibold text-slate-300 mb-1">
-                        Complemento
-                      </label>
-                      <input
-                        type="text"
-                        value={nodeData.complement || ''}
-                        onChange={(e) => handleDataChange('complement', e.target.value)}
-                        placeholder="Ex: Galpão 03, Bloco B"
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-mono font-semibold text-slate-300 mb-1">
-                        Bairro
-                      </label>
-                      <input
-                        type="text"
-                        value={nodeData.neighborhood || ''}
-                        onChange={(e) => handleDataChange('neighborhood', e.target.value)}
-                        placeholder="Ex: Distrito Industrial"
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="sm:col-span-2">
-                      <label className="block text-xs font-mono font-semibold text-slate-300 mb-1">
-                        Cidade
-                      </label>
-                      <input
-                        type="text"
-                        value={nodeData.city || ''}
-                        onChange={(e) => handleDataChange('city', e.target.value)}
-                        placeholder="Ex: São Paulo"
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-mono font-semibold text-slate-300 mb-1">
-                        Estado (UF)
-                      </label>
-                      <input
-                        type="text"
-                        maxLength={2}
-                        value={nodeData.state || ''}
-                        onChange={(e) => handleDataChange('state', e.target.value.toUpperCase())}
-                        placeholder="SP"
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs font-mono text-white uppercase focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Tab 4: Comercial & Observações */}
-              {customerActiveTab === 'comercial' && (
-                <div className="space-y-4 p-4 rounded-xl bg-slate-950/40 border border-slate-800/80">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-xs font-mono font-semibold text-slate-300 mb-1">
-                        Status Cadastral
-                      </label>
-                      <select
-                        value={status}
-                        onChange={(e) => setStatus(e.target.value as NodeStatus)}
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
-                      >
-                        <option value="Ativo">Ativo</option>
-                        <option value="Em Andamento">Em Negociação</option>
-                        <option value="A Fazer">Prospecção</option>
-                        <option value="Bloqueado">Bloqueado / Inadimplente</option>
-                        <option value="Concluído">Inativo / Arquivado</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-mono font-semibold text-slate-300 mb-1 flex items-center gap-1.5">
-                        <CreditCard className="w-3.5 h-3.5 text-blue-400" /> Condição de Pagamento
-                      </label>
-                      <input
-                        type="text"
-                        value={nodeData.paymentTerm || ''}
-                        onChange={(e) => handleDataChange('paymentTerm', e.target.value)}
-                        placeholder="Ex: 30 DDL ou 28/56 DDL"
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-mono font-semibold text-slate-300 mb-1">
-                        Limite de Crédito (R$)
-                      </label>
-                      <input
-                        type="number"
-                        value={nodeData.creditLimit ?? 50000}
-                        onChange={(e) => handleDataChange('creditLimit', Number(e.target.value))}
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs font-mono text-emerald-400 focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-xs font-mono font-semibold text-slate-300 mb-1">
-                        Faturamento Histórico Acumulado
-                      </label>
-                      <input
-                        type="text"
-                        value={nodeData.totalRevenue || 'R$ 0'}
-                        onChange={(e) => handleDataChange('totalRevenue', e.target.value)}
-                        placeholder="Ex: R$ 380.000"
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs font-mono text-emerald-400 focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-mono font-semibold text-slate-300 mb-1">
-                        Quantidade de Pedidos Ativos
-                      </label>
-                      <input
-                        type="number"
-                        value={nodeData.ordersCount ?? 1}
-                        onChange={(e) => handleDataChange('ordersCount', parseInt(e.target.value) || 1)}
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs font-mono text-blue-400 focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-mono font-semibold text-slate-300 mb-1 flex items-center gap-1.5">
-                        <Tag className="w-3.5 h-3.5 text-pink-400" /> Tags / Rótulos
-                      </label>
-                      <input
-                        type="text"
-                        value={tagsInput}
-                        onChange={(e) => setTagsInput(e.target.value)}
-                        placeholder="ex: vip, direto, pecas-pesadas"
-                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-mono font-semibold text-slate-300 mb-1">
-                      Observações Gerais & Requisitos de Entrega / Notas Fiscais
+                    <label className="block text-xs font-mono font-semibold text-slate-300 mb-1.5 uppercase">
+                      Status de Atendimento
                     </label>
-                    <textarea
-                      rows={3}
-                      value={nodeData.notes || ''}
-                      onChange={(e) => handleDataChange('notes', e.target.value)}
-                      placeholder="Insira observações relevantes sobre o cliente, restrições de descarga, laudos técnicos exigidos, etc..."
-                      className="w-full bg-slate-900 border border-slate-700/80 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
-                    />
+                    <select
+                      id="customer-status-simplified"
+                      value={status}
+                      onChange={(e) => setStatus(e.target.value as any)}
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
+                    >
+                      <option value="Ativo">Ativo / Em Atendimento</option>
+                      <option value="Pendente">Pendente</option>
+                      <option value="Inativo">Inativo</option>
+                    </select>
                   </div>
                 </div>
-              )}
+              </div>
 
-              {/* Central Registry Synchronization Checkbox */}
-              <div className="p-3 rounded-xl bg-blue-950/20 border border-blue-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <input
-                    id="sync-to-registry-checkbox"
-                    type="checkbox"
-                    checked={saveToRegistry}
-                    onChange={(e) => setSaveToRegistry(e.target.checked)}
-                    className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500 focus:ring-offset-slate-900 cursor-pointer"
-                  />
-                  <label htmlFor="sync-to-registry-checkbox" className="text-xs text-slate-300 cursor-pointer select-none">
-                    <span className="font-semibold text-blue-300">Salvar / Atualizar na Base Central de Clientes</span> (permite buscar e reutilizar em outros fluxos)
-                  </label>
+              {/* Informações Recebidas */}
+              <div className="p-5 rounded-xl bg-slate-950/40 border border-slate-800 space-y-3">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-800/60">
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">
+                    Informações Recebidas & Observações
+                  </span>
                 </div>
 
-                <div className="flex items-center gap-1 text-[11px] font-mono text-slate-400">
-                  <Database className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Base Geral Ativa</span>
+                <div>
+                  <textarea
+                    id="customer-notes-simplified"
+                    rows={6}
+                    value={nodeData.notes || ''}
+                    onChange={(e) => handleDataChange('notes', e.target.value)}
+                    placeholder="Digite aqui todas as informações recebidas do cliente (ex: contatos adicionais, detalhes técnicos, endereço, observações de faturamento, etc...)"
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors font-sans"
+                  />
                 </div>
               </div>
             </div>
@@ -1618,18 +1006,6 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({
                       {nodeType === 'order' ? 'Pedido de Venda (PV)' : 'Orçamento / Proposta (ORC)'}
                     </div>
                   </div>
-
-                  {nodeType === 'budget' && (
-                    <button
-                      type="button"
-                      onClick={handleConvertToSalesOrder}
-                      className="ml-2 px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5 transition-all shadow-sm"
-                      title="Transformar este orçamento em um Pedido de Venda oficial com numeração PV"
-                    >
-                      <ArrowRightLeft className="w-3.5 h-3.5" />
-                      <span>Converter em Pedido de Venda</span>
-                    </button>
-                  )}
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -1732,6 +1108,37 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({
                           </p>
                         </div>
                       </div>
+
+                      {/* OPÇÃO: OCULTAR O VALOR APENAS */}
+                      {!nodeData.withoutValue && (
+                        <div className="pt-2.5 mt-2.5 border-t border-slate-800 flex items-start gap-2.5">
+                          <input
+                            type="checkbox"
+                            id="order-hide-value-only-checkbox"
+                            checked={Boolean(nodeData.hideValueOnly || nodeData.hideValue)}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              handleDataChange('hideValueOnly', checked);
+                              handleDataChange('hideValue', checked);
+                            }}
+                            className="mt-1 w-4 h-4 rounded border-slate-700 bg-slate-950 text-amber-500 focus:ring-amber-500 cursor-pointer"
+                          />
+                          <div>
+                            <label htmlFor="order-hide-value-only-checkbox" className="text-xs font-bold text-amber-300 flex items-center gap-2 cursor-pointer">
+                              <EyeOff className="w-3.5 h-3.5 text-amber-400" />
+                              <span>Ocultar o valor apenas (Exibição sigilosa no quadro)</span>
+                              {(nodeData.hideValueOnly || nodeData.hideValue) && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono font-medium">
+                                  Valor Oculto no Canvas
+                                </span>
+                              )}
+                            </label>
+                            <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+                              O valor monetário é preservado para cálculos de totais e relatórios, mas é exibido como "••••••••" no quadro para proteção de dados e sigilo.
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {nodeData.withoutValue && (
@@ -2886,6 +2293,18 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({
               <Trash2 className="w-4 h-4" /> Excluir Quadro
             </button>
             <button
+              id="node-detail-modal-copy"
+              onClick={() => {
+                if (onCopyNode) {
+                  onCopyNode(node.id);
+                }
+              }}
+              className="px-3 py-2 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border border-sky-500/30 flex items-center gap-1.5 text-xs font-medium transition-colors cursor-pointer"
+              title="Copiar Quadro (Ctrl+C)"
+            >
+              <Copy className="w-4 h-4 text-sky-400" /> Copiar (Ctrl+C)
+            </button>
+            <button
               id="node-detail-modal-duplicate"
               onClick={() => {
                 onDuplicateNode(node.id);
@@ -2893,7 +2312,7 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({
               }}
               className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center gap-1.5 text-xs font-medium transition-colors"
             >
-              <Copy className="w-4 h-4" /> Duplicar
+              <Copy className="w-4 h-4" /> Duplicar (Ctrl+D)
             </button>
           </div>
 

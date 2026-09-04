@@ -239,74 +239,13 @@ export const NodeProgressBar: React.FC<NodeProgressBarProps> = ({
       {/* Track do Progresso Operacional */}
       <div
         onMouseDown={handleProgressBarInteraction}
-        className="relative w-full h-2.5 bg-slate-950/90 rounded-full overflow-hidden p-0.5 border border-white/10 cursor-pointer group/bar shadow-inner mb-2.5"
+        className="relative w-full h-2.5 bg-slate-950/90 rounded-full overflow-hidden p-0.5 border border-white/10 cursor-pointer group/bar shadow-inner mb-2"
         title="Clique ou arraste para definir o progresso operacional (0-100%)"
       >
         <div
           className={`h-full bg-gradient-to-r ${colors.barGradient} rounded-full transition-all duration-300`}
           style={{ width: `${progressPercent}%` }}
         />
-      </div>
-
-      {/* 2. BARRA DE PROGRESSO TEMPORAL (BASEADO EM DATAS / PRAZOS) */}
-      <div className="flex items-center justify-between text-[10px] font-mono mb-1">
-        <div className="flex items-center gap-1.5 text-slate-400">
-          <Clock className="w-3 h-3 text-indigo-400" />
-          <span className="font-semibold uppercase tracking-wider text-indigo-300">
-            Progresso Temporal (Prazos)
-          </span>
-        </div>
-
-        <div className="flex items-center gap-1 font-extrabold text-xs">
-          <span className={isFinished ? 'text-emerald-400' : isOverdue ? 'text-rose-400 font-bold' : 'text-indigo-400'}>
-            {timeProgressPercent}%
-          </span>
-        </div>
-      </div>
-
-      {/* Track do Progresso Temporal */}
-      <div
-        className="relative w-full h-2 bg-slate-950/90 rounded-full overflow-hidden p-0.5 border border-white/10 mb-1.5"
-        title={`Tempo decorrido do prazo total: ${timeProgressPercent}%`}
-      >
-        <div
-          className={`h-full rounded-full transition-all duration-300 ${
-            isFinished
-              ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
-              : isOverdue
-              ? 'bg-gradient-to-r from-rose-600 to-amber-500 animate-pulse'
-              : isWarning
-              ? 'bg-gradient-to-r from-amber-500 to-yellow-400'
-              : 'bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-400'
-          }`}
-          style={{ width: `${isFinished ? 100 : timeProgressPercent}%` }}
-        />
-      </div>
-
-      {/* Datas e seletores (Início e Fim / Prazo) */}
-      <div className="flex justify-between items-center text-[9px] font-mono text-slate-300 bg-slate-950/60 p-1.5 rounded border border-white/10">
-        <div className="flex items-center gap-1 group/date">
-          <Calendar className="w-2.5 h-2.5 text-white shrink-0" />
-          <span className="uppercase font-bold text-slate-300">Início:</span>
-          <input
-            type="date"
-            value={node.data.startDate || ''}
-            onChange={(e) => onUpdateData?.(node.id, { startDate: e.target.value })}
-            className="bg-transparent border-none text-white font-bold cursor-pointer focus:outline-none focus:text-cyan-300 transition-colors"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-        <div className="flex items-center gap-1 group/date">
-          <Calendar className="w-2.5 h-2.5 text-white shrink-0" />
-          <span className="uppercase font-bold text-slate-300">Fim (Prazo):</span>
-          <input
-            type="date"
-            value={node.data.dueDate || node.data.deliveryDeadline || ''}
-            onChange={(e) => onUpdateData?.(node.id, { dueDate: e.target.value })}
-            className="bg-transparent border-none text-white font-bold cursor-pointer focus:outline-none focus:text-cyan-300 transition-colors text-right"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
       </div>
 
       {/* Popover slider control se ativado */}

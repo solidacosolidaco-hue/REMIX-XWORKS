@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { CanvasNode } from '../../types/canvas';
 import { FileText, FileCode, FileSpreadsheet } from 'lucide-react';
-import { NodeProgressBar } from '../common/NodeProgressBar';
-import { NodeTimeFrame } from '../common/NodeTimeFrame';
 
 interface DocumentNodeProps {
   node: CanvasNode;
@@ -16,7 +14,7 @@ export const DocumentNode: React.FC<DocumentNodeProps> = ({
   onUpdateTitle,
 }) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [titleInput, setTitleInput] = useState(node.name || 'Documento Técnico');
+  const [titleInput, setTitleInput] = useState(node.name || 'Informação Técnica');
 
   const docType = node.data.docType || 'CAD';
   const description = node.data.description || 'Documentação técnica do projeto.';
@@ -52,7 +50,7 @@ export const DocumentNode: React.FC<DocumentNodeProps> = ({
             </div>
             <div className="flex-1 min-w-0">
               <span className="text-[10px] font-mono uppercase tracking-wider text-indigo-400 block">
-                DOCUMENTO TÉCNICO
+                INFORMAÇÃO TÉCNICA
               </span>
               {isEditingTitle ? (
                 <input
@@ -80,17 +78,7 @@ export const DocumentNode: React.FC<DocumentNodeProps> = ({
               )}
             </div>
           </div>
-
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-950/60 border border-indigo-500/30 text-indigo-300 font-bold shrink-0 ml-2">
-            {docType}
-          </span>
         </div>
-
-        {/* Prazo Inicial e Prazo Final do Quadro */}
-        <NodeTimeFrame node={node} onUpdateData={onUpdateData} className="mb-2" />
-
-        {/* Content Progress Bar */}
-        <NodeProgressBar node={node} onUpdateData={onUpdateData} className="my-2" />
 
         <div className="p-2 rounded-lg bg-slate-950/60 border border-slate-800/80 my-2 text-xs">
           <p className="text-slate-300 text-xs leading-relaxed">{description}</p>

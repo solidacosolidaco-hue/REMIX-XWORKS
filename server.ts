@@ -1,7 +1,6 @@
 import express from "express";
 import path from "path";
 import { GoogleGenAI } from "@google/genai";
-import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -30,61 +29,12 @@ function getAiClient(): GoogleGenAI {
   return aiClient;
 }
 
-// Lazy initialization for Supabase server client
-let supabaseClient: any = null;
-function getSupabaseClient() {
-  if (!supabaseClient) {
-    const rawUrl =
-      process.env.SUPABASE_URL ||
-      process.env.VITE_SUPABASE_URL ||
-      "https://nwqbdwcvhdrjssoezftj.supabase.co";
-    const supabaseUrl = rawUrl.replace(/\/rest\/v1\/?$/, "").replace(/\/+$/, "");
-    const supabaseAnonKey =
-      process.env.SUPABASE_ANON_KEY ||
-      process.env.VITE_SUPABASE_ANON_KEY ||
-      "sb_publishable_AGUlIum4Nt11sTshd4q1RA_5P-YXVa0";
-
-    supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
-  }
-  return supabaseClient;
-}
 
 // API Routes
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", app: "XCanvas AI Server", time: new Date().toISOString() });
 });
 
-// Supabase Status Endpoint
-app.get("/api/supabase/status", async (req, res) => {
-  try {
-    const client = getSupabaseClient();
-    const start = Date.now();
-    const { error: pingError } = await client.auth.getSession();
-    const latency = Date.now() - start;
-
-    const [bRes, cRes, oRes] = await Promise.all([
-      client.from("boards").select("id").limit(0),
-      client.from("customers").select("id").limit(0),
-      client.from("orders").select("id").limit(0),
-    ]);
-
-    res.json({
-      connected: !pingError,
-      latencyMs: latency,
-      url: "https://nwqbdwcvhdrjssoezftj.supabase.co",
-      tables: {
-        boards: !bRes.error || bRes.error.code !== "PGRST205",
-        customers: !cRes.error || cRes.error.code !== "PGRST205",
-        orders: !oRes.error || oRes.error.code !== "PGRST205",
-      },
-    });
-  } catch (err: any) {
-    res.status(500).json({
-      connected: false,
-      error: err?.message || "Erro ao conectar com Supabase",
-    });
-  }
-});
 
 // AI Assistant Endpoint for Canvas Intelligence
 app.post("/api/ai/chat", async (req, res) => {

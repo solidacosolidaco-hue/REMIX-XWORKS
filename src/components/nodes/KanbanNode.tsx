@@ -24,6 +24,14 @@ export const KanbanNode: React.FC<KanbanNodeProps> = ({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState(node.name || 'Quadro Kanban');
 
+  // Drag and Drop State
+  const [dragOverColId, setDragOverColId] = useState<string | null>(null);
+
+  // Search & Filters State (Trello Premium feel)
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterPriority, setFilterPriority] = useState<string>('all');
+  const [filterAssignee, setFilterAssignee] = useState<string>('all');
+
   // Detailed Card Editor States
   const [editingCard, setEditingCard] = useState<KanbanCard | null>(null);
   const [editTitle, setEditTitle] = useState('');
@@ -34,10 +42,39 @@ export const KanbanNode: React.FC<KanbanNodeProps> = ({
   const [editDueDate, setEditDueDate] = useState('');
   const [editLinkUrl, setEditLinkUrl] = useState('');
   const [editLinkTitle, setEditLinkTitle] = useState('');
+  const [editLinks, setEditLinks] = useState<{ id: string; title: string; url: string }[]>([]);
+  const [newLinkTitle, setNewLinkTitle] = useState('');
+  const [newLinkUrl, setNewLinkUrl] = useState('');
+  const [editCoverColor, setEditCoverColor] = useState<string>(''); // e.g., 'blue', 'emerald', 'amber', 'rose', 'purple', or ''
+  const [editTags, setEditTags] = useState<string[]>([]);
+  const [newTagText, setNewTagText] = useState('');
   const [editEstimatedHours, setEditEstimatedHours] = useState<number | ''>('');
   const [editBudgetCost, setEditBudgetCost] = useState<number | ''>('');
   const [editChecklist, setEditChecklist] = useState<{ id: string; text: string; done: boolean }[]>([]);
   const [newChecklistItem, setNewChecklistItem] = useState('');
+
+  // Native Drag and Drop Helpers
+  const handleDragStart = (e: React.DragEvent, cardId: string) => {
+    e.dataTransfer.setData('text/plain', cardId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleCardDrop = (e: React.DragEvent, targetColumnId: string) => {
+    e.preventDefault();
+    setDragOverColId(null);
+    const cardId = e.dataTransfer.getData('text/plain');
+    if (!cardId) return;
+
+    const updatedCards = cards.map((c) => {
+      if (c.id === cardId) {
+        return { ...c, columnId: targetColumnId };
+      }
+      return c;
+    });
+
+    const newPct = calcCardsProgress(updatedCards);
+    onUpdateData(node.id, { cards: updatedCards, progressPercent: newPct, currentValue: newPct });
+  };
 
   const openCardEditor = (card: KanbanCard) => {
     setEditingCard(card);
@@ -53,6 +90,17 @@ export const KanbanNode: React.FC<KanbanNodeProps> = ({
     setEditBudgetCost(card.budgetCost ?? '');
     setEditChecklist(card.checklist || []);
     setNewChecklistItem('');
+    setEditCoverColor(card.coverColor || '');
+    setEditTags(card.tags || []);
+    setNewTagText('');
+
+    const initialLinks = card.links ? [...card.links] : [];
+    if (card.linkUrl && !initialLinks.some(l => l.url === card.linkUrl)) {
+      initialLinks.push({ id: `lnk-legacy-${Date.now()}`, title: card.linkTitle || 'Link Principal', url: card.linkUrl });
+    }
+    setEditLinks(initialLinks);
+    setNewLinkTitle('');
+    setNewLinkUrl('');
   };
 
   const saveCardChanges = () => {
@@ -67,8 +115,11 @@ export const KanbanNode: React.FC<KanbanNodeProps> = ({
           priority: editPriority,
           startDate: editStartDate || undefined,
           dueDate: editDueDate || undefined,
-          linkUrl: editLinkUrl.trim() || undefined,
-          linkTitle: editLinkTitle.trim() || undefined,
+          linkUrl: editLinks[0]?.url || undefined,
+          linkTitle: editLinks[0]?.title || undefined,
+          links: editLinks,
+          coverColor: editCoverColor || undefined,
+          tags: editTags,
           estimatedHours: editEstimatedHours !== '' ? Number(editEstimatedHours) : undefined,
           budgetCost: editBudgetCost !== '' ? Number(editBudgetCost) : undefined,
           checklist: editChecklist,
@@ -168,6 +219,17 @@ export const KanbanNode: React.FC<KanbanNodeProps> = ({
     }
   };
 
+  const getCoverBg = (color?: string) => {
+    switch (color) {
+      case 'blue': return 'bg-blue-600';
+      case 'emerald': return 'bg-emerald-600';
+      case 'amber': return 'bg-amber-500';
+      case 'rose': return 'bg-rose-600';
+      case 'purple': return 'bg-purple-600';
+      default: return null;
+    }
+  };
+
   return (
     <div
       id={`kanban-node-${node.id}`}
@@ -223,6 +285,63 @@ export const KanbanNode: React.FC<KanbanNodeProps> = ({
         <NodeProgressBar node={node} onUpdateData={onUpdateData} compact={false} />
       </div>
 
+      {/* Trello Premium Search & Filters Area */}
+      <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-950/60 rounded-lg border border-slate-800/80 mb-3 text-[10px]" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="flex-1 min-w-[120px] relative">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Buscar cards..."
+            className="w-full bg-slate-900 border border-slate-800 rounded-md pl-2 pr-6 py-1 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500 font-medium"
+          />
+          {searchQuery && (
+            <button 
+              onClick={() => setSearchQuery('')}
+              className="absolute right-1.5 top-1 text-slate-500 hover:text-slate-300 text-xs"
+            >
+              ×
+            </button>
+          )}
+        </div>
+
+        <select
+          value={filterPriority}
+          onChange={(e) => setFilterPriority(e.target.value)}
+          className="bg-slate-900 border border-slate-800 rounded-md px-1.5 py-1 text-xs text-slate-300 focus:outline-none focus:border-sky-500 font-medium cursor-pointer"
+        >
+          <option value="all">Prioridades (Todas)</option>
+          <option value="baixa">Baixa</option>
+          <option value="media">Média</option>
+          <option value="alta font-bold text-amber-400">Alta</option>
+          <option value="urgente font-bold text-rose-400">Urgente</option>
+        </select>
+
+        <select
+          value={filterAssignee}
+          onChange={(e) => setFilterAssignee(e.target.value)}
+          className="bg-slate-900 border border-slate-800 rounded-md px-1.5 py-1 text-xs text-slate-300 focus:outline-none focus:border-sky-500 font-medium max-w-[120px] cursor-pointer"
+        >
+          <option value="all">Responsáveis (Todos)</option>
+          {Array.from(new Set(cards.map(c => c.assignee).filter(Boolean))).map((assignee) => (
+            <option key={assignee} value={assignee!}>{assignee}</option>
+          ))}
+        </select>
+
+        {(searchQuery || filterPriority !== 'all' || filterAssignee !== 'all') && (
+          <button
+            onClick={() => {
+              setSearchQuery('');
+              setFilterPriority('all');
+              setFilterAssignee('all');
+            }}
+            className="px-2 py-1 text-[10px] font-mono text-rose-400 hover:text-rose-300 bg-rose-500/10 rounded-md border border-rose-500/20 transition-all font-bold cursor-pointer"
+          >
+            Limpar
+          </button>
+        )}
+      </div>
+
       {/* Kanban Columns Grid */}
       <div 
         className="grid gap-3 flex-1 overflow-x-auto min-h-[250px]"
@@ -239,6 +358,21 @@ export const KanbanNode: React.FC<KanbanNodeProps> = ({
             if (col.id === 'col-done' && (c.columnId === 'done')) return true;
             if (colIdx === 0 && (!c.columnId || c.columnId === 'col-todo')) return true;
             return false;
+          }).filter((c) => {
+            // Apply Search Query
+            if (searchQuery) {
+              const query = searchQuery.toLowerCase();
+              const titleMatch = c.title?.toLowerCase().includes(query);
+              const descMatch = c.description?.toLowerCase().includes(query);
+              const assigneeMatch = c.assignee?.toLowerCase().includes(query);
+              const tagsMatch = c.tags?.some(tag => tag.toLowerCase().includes(query));
+              if (!titleMatch && !descMatch && !assigneeMatch && !tagsMatch) return false;
+            }
+            // Apply Priority Filter
+            if (filterPriority !== 'all' && c.priority !== filterPriority) return false;
+            // Apply Assignee Filter
+            if (filterAssignee !== 'all' && c.assignee !== filterAssignee) return false;
+            return true;
           });
 
           const prevCol = colIdx > 0 ? columns[colIdx - 1] : null;
@@ -247,7 +381,15 @@ export const KanbanNode: React.FC<KanbanNodeProps> = ({
           return (
             <div
               key={col.id}
-              className="bg-slate-950/60 rounded-xl border border-slate-800/80 p-2.5 flex flex-col justify-between overflow-hidden"
+              onDragOver={(e) => e.preventDefault()}
+              onDragEnter={(e) => { e.preventDefault(); setDragOverColId(col.id); }}
+              onDragLeave={() => setDragOverColId(null)}
+              onDrop={(e) => handleCardDrop(e, col.id)}
+              className={`bg-slate-950/60 rounded-xl border p-2.5 flex flex-col justify-between overflow-hidden transition-all duration-200 ${
+                dragOverColId === col.id 
+                  ? 'border-sky-500 bg-sky-500/10 shadow-lg shadow-sky-500/15 scale-[1.01]' 
+                  : 'border-slate-800/80 hover:border-slate-750/80'
+              }`}
             >
               {/* Column Header */}
               <div>
@@ -272,35 +414,137 @@ export const KanbanNode: React.FC<KanbanNodeProps> = ({
                     const doneSubtasks = card.checklist?.filter(item => item.done).length || 0;
                     const totalSubtasks = card.checklist?.length || 0;
 
+                    const coverBg = getCoverBg(card.coverColor);
+
                     return (
                       <div
                         key={card.id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, card.id)}
                         onClick={(e) => {
                           e.stopPropagation();
                           openCardEditor(card);
                         }}
-                        className="p-2.5 bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-slate-600 rounded-lg shadow-sm group/card transition-all cursor-pointer select-none"
+                        className="bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-slate-600 rounded-lg shadow-sm group/card transition-all cursor-pointer select-none overflow-hidden active:scale-[0.98]"
                       >
-                        <div className="flex items-start justify-between gap-1 mb-1">
-                          <div className="flex-1 min-w-0">
-                            <h4 className="text-xs font-semibold text-slate-200 leading-snug break-words group-hover/card:text-white transition-colors">
-                              {card.title}
-                            </h4>
+                        {coverBg && (
+                          <div className={`h-2.5 w-full ${coverBg} opacity-85 transition-opacity group-hover/card:opacity-100`} />
+                        )}
+                        <div className="p-2.5">
+                          {/* Tags Display */}
+                          {card.tags && card.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-1.5">
+                              {card.tags.map((tag, tIdx) => {
+                                const tagColors = [
+                                  'bg-blue-500/20 text-blue-300 border-blue-500/25',
+                                  'bg-emerald-500/20 text-emerald-300 border-emerald-500/25',
+                                  'bg-amber-500/20 text-amber-300 border-amber-500/25',
+                                  'bg-rose-500/20 text-rose-300 border-rose-500/25',
+                                  'bg-purple-500/20 text-purple-300 border-purple-500/25',
+                                ];
+                                const colorClass = tagColors[tIdx % tagColors.length];
+                                return (
+                                  <span key={tag} className={`text-[7.5px] font-bold font-mono px-1.5 py-0.5 rounded border uppercase tracking-wider ${colorClass}`}>
+                                    {tag}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          <div className="flex items-start justify-between gap-1 mb-1">
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-xs font-semibold text-slate-200 leading-snug break-words group-hover/card:text-white transition-colors">
+                                {card.title}
+                              </h4>
+                            </div>
+                            <button onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => { e.stopPropagation(); deleteCard(card.id); }}
+                              className="opacity-0 group-hover/card:opacity-100 p-0.5 text-slate-500 hover:text-rose-400 transition-opacity shrink-0"
+                              title="Excluir Card"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
-                          <button onMouseDown={(e) => e.stopPropagation()}
-                            onClick={(e) => { e.stopPropagation(); deleteCard(card.id); }}
-                            className="opacity-0 group-hover/card:opacity-100 p-0.5 text-slate-500 hover:text-rose-400 transition-opacity shrink-0"
-                            title="Excluir Card"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
 
                         {/* Optional Description preview indicator */}
                         {card.description && (
                           <p className="text-[10px] text-slate-400 line-clamp-2 mt-1 leading-normal">
                             {card.description}
                           </p>
+                        )}
+
+                        {/* Interactive Checklist list directly on the Card (Trello Paid Mode style) */}
+                        {card.checklist && card.checklist.length > 0 && (
+                          <div 
+                            className="mt-2.5 space-y-1 bg-slate-950/45 p-2 rounded-lg border border-slate-800/60" 
+                            onMouseDown={(e) => e.stopPropagation()} 
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="flex items-center justify-between text-[9px] font-mono text-slate-400 mb-1">
+                              <span className="uppercase font-bold text-emerald-400 flex items-center gap-1">
+                                <CheckSquare className="w-2.5 h-2.5" /> Checklist
+                              </span>
+                              <span className="bg-slate-900 px-1.5 py-0.2 rounded text-[8.5px]">
+                                {doneSubtasks}/{totalSubtasks}
+                              </span>
+                            </div>
+                            <div className="space-y-1 max-h-[100px] overflow-y-auto pr-0.5">
+                              {card.checklist.map((item, idx) => (
+                                <label 
+                                  key={item.id} 
+                                  className="flex items-center gap-2 cursor-pointer group/chk select-none"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={item.done}
+                                    onChange={(e) => {
+                                      const updatedCards = cards.map((c) => {
+                                        if (c.id === card.id) {
+                                          const nextChecklist = [...(c.checklist || [])];
+                                          nextChecklist[idx] = { ...item, done: e.target.checked };
+                                          return { ...c, checklist: nextChecklist };
+                                        }
+                                        return c;
+                                      });
+                                      const newPct = calcCardsProgress(updatedCards);
+                                      onUpdateData(node.id, { cards: updatedCards, progressPercent: newPct, currentValue: newPct });
+                                    }}
+                                    className="rounded text-emerald-500 bg-slate-900 border-slate-800 focus:ring-0 w-3 h-3 cursor-pointer"
+                                  />
+                                  <span className={`text-[10.5px] truncate flex-1 leading-none ${item.done ? 'line-through text-slate-500' : 'text-slate-300 group-hover/chk:text-white transition-colors'}`}>
+                                    {item.text}
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
+                            
+                            {/* Inline Add Item to Checklist on Card */}
+                            <div className="mt-1.5 pt-1.5 border-t border-slate-900/60">
+                              <input 
+                                type="text"
+                                placeholder="+ Adicionar subtarefa..."
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    const val = (e.target as HTMLInputElement).value.trim();
+                                    if (val) {
+                                      const newItem = { id: `chk-${Date.now()}-${Math.random()}`, text: val, done: false };
+                                      const updatedCards = cards.map((c) => {
+                                        if (c.id === card.id) {
+                                          return { ...c, checklist: [...(c.checklist || []), newItem] };
+                                        }
+                                        return c;
+                                      });
+                                      const newPct = calcCardsProgress(updatedCards);
+                                      onUpdateData(node.id, { cards: updatedCards, progressPercent: newPct, currentValue: newPct });
+                                      (e.target as HTMLInputElement).value = '';
+                                    }
+                                  }
+                                }}
+                                className="w-full bg-transparent border-none p-0 text-[10px] text-slate-300 placeholder-slate-500 focus:outline-none focus:ring-0 font-medium"
+                              />
+                            </div>
+                          </div>
                         )}
 
                         {/* Additional customizable info rows (estimations, checklists, links) */}
@@ -330,20 +574,28 @@ export const KanbanNode: React.FC<KanbanNodeProps> = ({
                               </div>
                             )}
 
-                            {/* Clickable External Link */}
-                            {card.linkUrl && (
-                              <a 
-                                href={card.linkUrl.startsWith('http') ? card.linkUrl : `https://${card.linkUrl}`} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                onClick={(e) => e.stopPropagation()}
-                                onMouseDown={(e) => e.stopPropagation()}
-                                className="flex items-center gap-1 bg-sky-500/10 text-sky-400 border border-sky-500/20 hover:bg-sky-500/20 px-1 rounded transition-colors" 
-                                title={card.linkTitle || card.linkUrl}
-                              >
-                                <Link2 className="w-2.5 h-2.5" />
-                                <span className="truncate max-w-[60px]">{card.linkTitle || 'Link'}</span>
-                              </a>
+                            {/* Clickable External Links */}
+                            {((card.links && card.links.length > 0) || card.linkUrl) && (
+                              <div className="flex flex-wrap gap-1">
+                                {(card.links && card.links.length > 0 
+                                  ? card.links 
+                                  : [{ id: 'legacy', title: card.linkTitle || 'Link', url: card.linkUrl! }]
+                                ).map((lnk) => (
+                                  <a 
+                                    key={lnk.id}
+                                    href={lnk.url.startsWith('http') ? lnk.url : `https://${lnk.url}`} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    onClick={(e) => e.stopPropagation()}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    className="flex items-center gap-1 bg-sky-500/10 text-sky-400 border border-sky-500/20 hover:bg-sky-500/20 px-1 py-0.5 rounded transition-colors text-[9px]" 
+                                    title={lnk.title || lnk.url}
+                                  >
+                                    <Link2 className="w-2.5 h-2.5 shrink-0" />
+                                    <span className="truncate max-w-[65px]">{lnk.title || 'Link'}</span>
+                                  </a>
+                                ))}
+                              </div>
                             )}
                           </div>
                         )}
@@ -403,7 +655,8 @@ export const KanbanNode: React.FC<KanbanNodeProps> = ({
                           ) : null}
                         </div>
                       </div>
-                    );
+                    </div>
+                  );
                   })}
                 </div>
               </div>
@@ -510,6 +763,99 @@ export const KanbanNode: React.FC<KanbanNodeProps> = ({
                 </div>
               </div>
 
+              {/* Covers & Tags (Trello Paid Mode) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 bg-slate-950/40 border border-slate-800/80 rounded-xl">
+                {/* Card Cover Selector */}
+                <div>
+                  <label className="block text-[10px] font-mono text-slate-400 uppercase tracking-wider mb-1.5">Capa do Cartão (Cover)</label>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {[
+                      { id: '', label: 'Nenhuma', class: 'bg-slate-950 border border-slate-800' },
+                      { id: 'blue', label: 'Azul', class: 'bg-blue-600' },
+                      { id: 'emerald', label: 'Verde', class: 'bg-emerald-600' },
+                      { id: 'amber', label: 'Amarelo', class: 'bg-amber-500' },
+                      { id: 'rose', label: 'Vermelho', class: 'bg-rose-600' },
+                      { id: 'purple', label: 'Roxo', class: 'bg-purple-600' },
+                    ].map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setEditCoverColor(c.id)}
+                        className={`w-6 h-6 rounded transition-all relative flex items-center justify-center border ${c.class} cursor-pointer ${
+                          editCoverColor === c.id 
+                            ? 'ring-2 ring-sky-500 scale-110 border-white' 
+                            : 'hover:scale-105 border-transparent'
+                        }`}
+                        title={c.label}
+                      >
+                        {editCoverColor === c.id && (
+                          <span className="text-[9px] font-bold text-white">✓</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Tags/Labels Editor */}
+                <div>
+                  <label className="block text-[10px] font-mono text-slate-400 uppercase tracking-wider mb-1.5">Etiquetas / Labels ({editTags.length})</label>
+                  <div className="space-y-1.5">
+                    {/* Tags list */}
+                    {editTags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 max-h-[50px] overflow-y-auto">
+                        {editTags.map((tag) => (
+                          <span 
+                            key={tag} 
+                            className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30 flex items-center gap-1 uppercase tracking-wider"
+                          >
+                            {tag}
+                            <button
+                              type="button"
+                              onClick={() => setEditTags(editTags.filter(t => t !== tag))}
+                              className="text-slate-400 hover:text-white font-black text-[10px]"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* New Tag Input */}
+                    <div className="flex gap-1.5">
+                      <input 
+                        type="text"
+                        value={newTagText}
+                        onChange={(e) => setNewTagText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (newTagText.trim() && !editTags.includes(newTagText.trim())) {
+                              setEditTags([...editTags, newTagText.trim()]);
+                              setNewTagText('');
+                            }
+                          }
+                        }}
+                        placeholder="Nova etiqueta..."
+                        className="flex-1 bg-slate-950 border border-slate-850 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (newTagText.trim() && !editTags.includes(newTagText.trim())) {
+                            setEditTags([...editTags, newTagText.trim()]);
+                            setNewTagText('');
+                          }
+                        }}
+                        className="px-2 bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-750 text-[10px] rounded cursor-pointer"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Priority & Assignee */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -579,32 +925,75 @@ export const KanbanNode: React.FC<KanbanNodeProps> = ({
                 </div>
               </div>
 
-              {/* External Link Section */}
-              <div className="p-3 bg-slate-950/40 rounded-xl border border-slate-800 space-y-3">
-                <div className="flex items-center gap-1.5 text-sky-400">
-                  <Link2 className="w-3.5 h-3.5" />
-                  <span className="text-[10px] font-mono uppercase tracking-wider font-bold">Link Externo / URL</span>
+              {/* External Links Section */}
+              <div className="p-3.5 bg-slate-950/40 rounded-xl border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-sky-400">
+                    <Link2 className="w-3.5 h-3.5" />
+                    <span className="text-[10px] font-mono uppercase tracking-wider font-bold">Links Externos / URLs ({editLinks.length})</span>
+                  </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[9px] font-mono text-slate-500 uppercase tracking-wider mb-0.5">Título do Link</label>
+
+                {/* List of links */}
+                {editLinks.length > 0 && (
+                  <div className="space-y-1.5 max-h-[100px] overflow-y-auto pr-1">
+                    {editLinks.map((lnk) => (
+                      <div key={lnk.id} className="flex items-center justify-between gap-2 p-1.5 bg-slate-900/60 rounded border border-slate-850 hover:border-slate-700 transition-colors">
+                        <a 
+                          href={lnk.url.startsWith('http') ? lnk.url : `https://${lnk.url}`}
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 text-xs text-sky-400 hover:text-sky-300 transition-colors truncate flex-1"
+                        >
+                          <Link2 className="w-3 h-3 text-sky-500 shrink-0" />
+                          <span className="font-semibold text-[11px] shrink-0 text-slate-300">[{lnk.title}]:</span>
+                          <span className="truncate font-mono text-[10px] text-slate-400">{lnk.url}</span>
+                        </a>
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            setEditLinks(editLinks.filter(l => l.id !== lnk.id));
+                          }}
+                          className="p-1 rounded text-slate-500 hover:text-rose-400 transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add new link fields */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input 
+                    type="text"
+                    value={newLinkTitle}
+                    onChange={(e) => setNewLinkTitle(e.target.value)}
+                    placeholder="Título (ex: Projeto Figma)"
+                    className="bg-slate-950 border border-slate-850 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+                  />
+                  <div className="flex gap-1.5">
                     <input 
                       type="text"
-                      value={editLinkTitle}
-                      onChange={(e) => setEditLinkTitle(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-500"
-                      placeholder="Ex: Figma, GitHub, Jira..."
+                      value={newLinkUrl}
+                      onChange={(e) => setNewLinkUrl(e.target.value)}
+                      placeholder="https://..."
+                      className="flex-1 bg-slate-950 border border-slate-850 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500 font-mono"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-[9px] font-mono text-slate-500 uppercase tracking-wider mb-0.5">URL do Link</label>
-                    <input 
-                      type="url"
-                      value={editLinkUrl}
-                      onChange={(e) => setEditLinkUrl(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-500 font-mono"
-                      placeholder="https://exemplo.com"
-                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (newLinkUrl.trim()) {
+                          const title = newLinkTitle.trim() || 'Link';
+                          setEditLinks([...editLinks, { id: `lnk-${Date.now()}`, title, url: newLinkUrl.trim() }]);
+                          setNewLinkTitle('');
+                          setNewLinkUrl('');
+                        }
+                      }}
+                      className="px-3 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-colors shrink-0 cursor-pointer"
+                    >
+                      Add Link
+                    </button>
                   </div>
                 </div>
               </div>

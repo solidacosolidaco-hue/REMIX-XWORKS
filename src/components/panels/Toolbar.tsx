@@ -50,6 +50,7 @@ import {
   Check,
   MoveUp,
   MoveDown,
+  ZapOff,
 } from 'lucide-react';
 
 interface SidebarItemDef {
@@ -80,10 +81,11 @@ const ALL_SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: 'project', label: 'Projeto de Engenharia', description: 'Central de plantas', nodeType: 'project', icon: <FolderGit2 className="w-5 h-5 text-cyan-400" />, color: 'text-cyan-400' },
   { id: 'checklist', label: 'Checklist Operacional', description: 'Verificações com checkbox', nodeType: 'checklist', icon: <CheckSquare className="w-5 h-5 text-teal-400" />, color: 'text-teal-400' },
   { id: 'note', label: 'Nota / Lembrete', description: 'Post-it rápido', nodeType: 'note', icon: <StickyNote className="w-5 h-5 text-yellow-400" />, color: 'text-yellow-400' },
-  { id: 'document', label: 'Documento Técnico', description: 'PDFs e arquivos', nodeType: 'document', icon: <FileText className="w-5 h-5 text-sky-400" />, color: 'text-sky-400' },
+  { id: 'document', label: 'Informação Técnica', description: 'PDFs e arquivos', nodeType: 'document', icon: <FileText className="w-5 h-5 text-sky-400" />, color: 'text-sky-400' },
   { id: 'group', label: 'Setor (Container)', description: 'Agrupador visual', nodeType: 'group', icon: <Layers className="w-5 h-5 text-pink-400" />, color: 'text-pink-400' },
   { id: 'financial_module', label: 'Módulo Financeiro', description: 'DRE e custos', nodeType: 'financial_module', icon: <PieChart className="w-5 h-5 text-indigo-400" />, color: 'text-indigo-400' },
   { id: 'calendar', label: 'Calendário & Agenda', description: 'Calendário executivo com prazos e agenda imersiva', nodeType: 'calendar', icon: <Calendar className="w-5 h-5 text-blue-400" />, color: 'text-blue-400' },
+  { id: 'interrupted_flow', label: 'Fluxo Interrompido', description: 'Ocorrência de problema que interrompe a animação do fluxo', nodeType: 'interrupted_flow', icon: <ZapOff className="w-5 h-5 text-rose-400" />, color: 'text-rose-400' },
 ];
 
 const DEFAULT_ACTIVE_IDS = ['employee_modal', 'customer', 'order', 'text', 'kanban'];

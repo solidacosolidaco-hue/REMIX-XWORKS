@@ -22,6 +22,9 @@ import {
   Moon,
   Square,
   Grid,
+  Copy,
+  ClipboardPaste,
+  ZapOff,
 } from 'lucide-react';
 
 interface ContextMenuProps {
@@ -29,11 +32,15 @@ interface ContextMenuProps {
   y: number;
   canvasCoordinates: { x: number; y: number };
   currentTheme?: CanvasTheme;
+  clipboardCount?: number;
+  hasSelectedNodes?: boolean;
   onClose: () => void;
   onCreateNode: (type: NodeType, coords: { x: number; y: number }) => void;
   onEnterConnectMode: () => void;
   onOpenProductsCatalog?: () => void;
   onChangeTheme?: (theme: CanvasTheme) => void;
+  onCopySelected?: () => void;
+  onPaste?: (coords: { x: number; y: number }) => void;
 }
 
 export const ContextMenu: React.FC<ContextMenuProps> = ({
@@ -41,11 +48,15 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   y,
   canvasCoordinates,
   currentTheme = 'dark',
+  clipboardCount = 0,
+  hasSelectedNodes = false,
   onClose,
   onCreateNode,
   onEnterConnectMode,
   onOpenProductsCatalog,
   onChangeTheme,
+  onCopySelected,
+  onPaste,
 }) => {
   const menuItems: {
     type: NodeType | 'connect' | 'catalog';
@@ -97,6 +108,13 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       desc: 'Sequenciamento, Máquinas, Datas e Prazos',
     },
     {
+      type: 'interrupted_flow',
+      label: 'Fluxo Interrompido',
+      icon: <ZapOff className="w-4 h-4 text-rose-400" />,
+      color: 'hover:border-rose-500/40',
+      desc: 'Parada de Processo / Ocorrência que bloqueia o fluxo',
+    },
+    {
       type: 'checklist',
       label: 'Checklist',
       icon: <CheckSquare className="w-4 h-4 text-teal-400" />,
@@ -133,7 +151,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
     },
     {
       type: 'document',
-      label: 'Documento Técnico',
+      label: 'Informação Técnica',
       icon: <FileText className="w-4 h-4 text-blue-400" />,
       color: 'hover:border-blue-500/40',
       desc: 'Desenhos CAD, PDFs e Manuais',
@@ -193,12 +211,55 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800 text-xs font-mono text-slate-400">
         <span className="font-bold text-sky-400 flex items-center gap-1.5">
           <Plus className="w-3.5 h-3.5" />
-          NOVO OBJETO
+          MENU DE AÇÕES
         </span>
         <span className="text-[10px] text-slate-500">
           X: {Math.round(canvasCoordinates.x)} | Y: {Math.round(canvasCoordinates.y)}
         </span>
       </div>
+
+      {/* Ações Rápidas de Copiar e Colar */}
+      {(hasSelectedNodes || clipboardCount > 0) && (
+        <div className="py-1 px-1 border-b border-slate-800/80 space-y-1">
+          {hasSelectedNodes && onCopySelected && (
+            <button
+              id="ctx-btn-copy"
+              onClick={() => {
+                onCopySelected();
+                onClose();
+              }}
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-left bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 text-sky-200 transition-all text-xs font-medium cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Copy className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                <span>Copiar Quadro Selecionado</span>
+              </div>
+              <kbd className="px-1.5 py-0.5 rounded bg-slate-950/80 border border-slate-700 text-[9px] font-mono text-slate-400">
+                Ctrl+C
+              </kbd>
+            </button>
+          )}
+
+          {clipboardCount > 0 && onPaste && (
+            <button
+              id="ctx-btn-paste"
+              onClick={() => {
+                onPaste(canvasCoordinates);
+                onClose();
+              }}
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-left bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-200 transition-all text-xs font-medium cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <ClipboardPaste className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span>Colar Quadro{clipboardCount > 1 ? `s (${clipboardCount})` : ''} Aqui</span>
+              </div>
+              <kbd className="px-1.5 py-0.5 rounded bg-slate-950/80 border border-slate-700 text-[9px] font-mono text-emerald-400 font-bold">
+                Ctrl+V
+              </kbd>
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="max-h-[340px] overflow-y-auto py-1 space-y-0.5 animate-in fade-in duration-200">
         {menuItems.map((item) => (

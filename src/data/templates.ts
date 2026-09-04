@@ -421,7 +421,20 @@ export const INDUSTRIAL_MACHINE_TEMPLATE: WorkspaceTemplate = {
   ],
 };
 
+export const MODELO_01_BASE_TEMPLATE: WorkspaceTemplate = {
+  id: 'modelo-01-base',
+  name: 'MODELO 01 — Estrutura Base Padrão Inicial',
+  description: 'Estrutura oficial padrão do controle de produção industrial: 5 áreas operacionais (Separação/Corte, Caldeiraria/Montagem, Pintura, Montagem Final, Expedição/KPIs) com 26 nós interligados.',
+  category: 'Modelos Oficiais de Fábrica',
+  nodes: CONTROLE_PRODUCAO_NODES,
+  connections: CONTROLE_PRODUCAO_CONNECTIONS,
+};
+
 export const TEMPLATES: Record<string, { nodes: CanvasNode[], connections: Connection[] }> = {
+  'MODELO 01 (Padrão Base Inicial)': {
+    nodes: CONTROLE_PRODUCAO_NODES,
+    connections: CONTROLE_PRODUCAO_CONNECTIONS,
+  },
   'Máquinas & ERP': {
     nodes: INDUSTRIAL_MACHINE_TEMPLATE.nodes,
     connections: INDUSTRIAL_MACHINE_TEMPLATE.connections

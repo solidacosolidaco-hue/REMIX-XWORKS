@@ -25,7 +25,8 @@ export type NodeType =
   | 'sector'
   | 'production_order'
   | 'production_route'
-  | 'attachment';
+  | 'attachment'
+  | 'interrupted_flow';
 
 export type NodeStatus =
   | 'A Fazer'
@@ -78,12 +79,14 @@ export interface KanbanCard {
   startDate?: string;
   priority?: 'baixa' | 'media' | 'alta' | 'urgente';
   tags?: string[];
+  coverColor?: string;
   checklist?: { id: string; text: string; done: boolean }[];
   commentsCount?: number;
   attachmentsCount?: number;
   progress?: number;
   linkUrl?: string;
   linkTitle?: string;
+  links?: { id: string; title: string; url: string }[];
   estimatedHours?: number;
   budgetCost?: number;
 }
@@ -194,6 +197,8 @@ export interface CanvasNodeData {
   withoutValue?: boolean; // Permite pedido de venda sem valor comercial (apenas dados descritivos/informativos)
   descriptiveOnly?: boolean; // Sinônimo para modo informativo/descritivo
   descriptiveNotes?: string; // Dados descritivos, escopo e instruções informativas
+  hideValueOnly?: boolean; // Ocultar apenas a exibição visual do valor no quadro (modo sigilo/apresentação)
+  hideValue?: boolean; // Sinônimo para ocultar valor visualmente
   itemsSubtotal?: number;
   shippingCost?: number;
   shippingType?: 'CIF' | 'FOB';
@@ -430,6 +435,7 @@ export interface Connection {
   id: string;
   fromId: string;
   toId: string;
+  toConnectionId?: string;
   fromHandle?: ConnectionHandle;
   toHandle?: ConnectionHandle;
   label?: string;
