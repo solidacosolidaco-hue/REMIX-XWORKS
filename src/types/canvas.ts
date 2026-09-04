@@ -29,6 +29,8 @@ export type NodeType =
   | 'interrupted_flow';
 
 export type NodeStatus =
+  | 'Ativo'
+  | 'Inativo'
   | 'A Fazer'
   | 'Em Andamento'
   | 'Em Produção'

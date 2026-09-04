@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { CanvasNode } from '../../types/canvas';
-import { Factory, Cpu, Users, FileText } from 'lucide-react';
-import { NodeProgressBar } from '../common/NodeProgressBar';
+import { Factory, Cpu, Users, FileText, Check } from 'lucide-react';
 import { NodeTimeFrame } from '../common/NodeTimeFrame';
 
 interface SectorNodeProps {
@@ -19,18 +18,35 @@ export const SectorNode: React.FC<SectorNodeProps> = ({
   onUpdateTitle,
   onOpenReport,
 }) => {
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [titleInput, setTitleInput] = useState(node.name || 'Setor Industrial');
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [tempValue, setTempValue] = useState('');
 
   const sectorCode = node.data.sectorCode || 'ST-USINAGEM-01';
   const sectorCapacity = node.data.sectorCapacity || '85% Utilização';
   const activeWorkers = node.data.activeWorkers ?? 18;
   const activeMachineCount = node.data.activeMachineCount ?? 8;
 
-  const handleTitleSubmit = () => {
-    setIsEditingTitle(false);
-    if (titleInput.trim() && onUpdateTitle) {
-      onUpdateTitle(node.id, titleInput.trim());
+  const startEditing = (field: string, initialVal: string) => {
+    setEditingField(field);
+    setTempValue(initialVal);
+  };
+
+  const saveEditing = (field: string) => {
+    setEditingField(null);
+    const val = tempValue.trim();
+
+    if (field === 'title') {
+      if (val) onUpdateTitle?.(node.id, val);
+    } else if (field === 'sectorCode') {
+      onUpdateData?.(node.id, { sectorCode: val || 'ST-01' });
+    } else if (field === 'sectorCapacity') {
+      onUpdateData?.(node.id, { sectorCapacity: val || '100% Capacidade' });
+    } else if (field === 'activeWorkers') {
+      const parsed = parseInt(val, 10);
+      onUpdateData?.(node.id, { activeWorkers: isNaN(parsed) ? 0 : parsed });
+    } else if (field === 'activeMachineCount') {
+      const parsed = parseInt(val, 10);
+      onUpdateData?.(node.id, { activeMachineCount: isNaN(parsed) ? 0 : parsed });
     }
   };
 
@@ -51,62 +67,166 @@ export const SectorNode: React.FC<SectorNodeProps> = ({
             </span>
           </div>
 
-          <span className="px-2 py-0.5 bg-slate-800 rounded text-[9px] font-mono text-emerald-300 border border-white/5 font-semibold">
-            {sectorCode}
-          </span>
+          {/* Sector Code Editable */}
+          {editingField === 'sectorCode' ? (
+            <input
+              type="text"
+              autoFocus
+              value={tempValue}
+              onChange={(e) => setTempValue(e.target.value)}
+              onBlur={() => saveEditing('sectorCode')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') saveEditing('sectorCode');
+                if (e.key === 'Escape') setEditingField(null);
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-900 border border-emerald-500 rounded px-1.5 py-0.5 text-[9px] font-mono text-emerald-300 focus:outline-none w-24"
+            />
+          ) : (
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                startEditing('sectorCode', sectorCode);
+              }}
+              className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 rounded text-[9px] font-mono text-emerald-300 border border-white/5 font-semibold cursor-pointer transition-all"
+              title="Clique para editar código do setor"
+            >
+              {sectorCode}
+            </span>
+          )}
         </div>
 
         {/* Editable Title */}
-        {isEditingTitle ? (
-          <input
-            type="text"
-            autoFocus
-            value={titleInput}
-            onChange={(e) => setTitleInput(e.target.value)}
-            onBlur={handleTitleSubmit}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleTitleSubmit();
-            }}
-            className="bg-slate-900 border border-emerald-500/50 rounded px-1.5 py-0.5 text-xs text-white font-semibold focus:outline-none w-full mb-1"
-          />
+        {editingField === 'title' ? (
+          <div className="flex items-center gap-1 mb-1" onClick={(e) => e.stopPropagation()}>
+            <input
+              type="text"
+              autoFocus
+              value={tempValue}
+              onChange={(e) => setTempValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') saveEditing('title');
+                if (e.key === 'Escape') setEditingField(null);
+              }}
+              className="bg-slate-900 border border-emerald-500 rounded px-2 py-1 text-xs text-white font-semibold focus:outline-none w-full"
+            />
+            <button
+              type="button"
+              onClick={() => saveEditing('title')}
+              className="p-1 rounded bg-emerald-600 text-white hover:bg-emerald-500 shrink-0 font-bold"
+            >
+              <Check className="w-3.5 h-3.5" />
+            </button>
+          </div>
         ) : (
           <h3
             onClick={(e) => {
               e.stopPropagation();
-              setIsEditingTitle(true);
+              startEditing('title', node.name || 'Setor Industrial');
             }}
-            className="font-bold text-sm text-white mb-0.5 leading-snug cursor-pointer hover:underline hover:text-emerald-300 transition-colors"
-            title="Clique para editar o nome do setor"
+            className="font-bold text-sm text-white mb-0.5 leading-snug cursor-pointer hover:text-emerald-300 hover:bg-emerald-500/10 rounded px-1 -mx-1 transition-all flex items-center justify-between"
+            title="Clique para editar nome do setor"
           >
-            {node.name}
+            <span>{node.name}</span>
+            <span className="text-[10px] text-emerald-400 opacity-60">✏️</span>
           </h3>
         )}
 
-        <p className="text-xs text-slate-400 mb-2 font-mono">
-          Capacidade: {sectorCapacity}
-        </p>
+        {/* Sector Capacity Editable */}
+        {editingField === 'sectorCapacity' ? (
+          <input
+            type="text"
+            autoFocus
+            value={tempValue}
+            onChange={(e) => setTempValue(e.target.value)}
+            onBlur={() => saveEditing('sectorCapacity')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') saveEditing('sectorCapacity');
+              if (e.key === 'Escape') setEditingField(null);
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-slate-900 border border-emerald-500 rounded px-1.5 py-0.5 text-xs text-white focus:outline-none w-full mb-2 font-mono"
+          />
+        ) : (
+          <p
+            onClick={(e) => {
+              e.stopPropagation();
+              startEditing('sectorCapacity', sectorCapacity);
+            }}
+            className="text-xs text-slate-400 mb-2 font-mono cursor-pointer hover:text-emerald-300 hover:bg-emerald-500/10 rounded px-1 -mx-1 transition-all"
+            title="Clique para editar capacidade do setor"
+          >
+            Capacidade: <span className="text-slate-200">{sectorCapacity}</span>
+          </p>
+        )}
 
         {/* Prazo Inicial e Prazo Final do Quadro */}
         <NodeTimeFrame node={node} onUpdateData={onUpdateData} className="mb-2" />
 
-        {/* Content Progress Bar */}
-        <NodeProgressBar node={node} allNodes={allNodes} onUpdateData={onUpdateData} className="mb-2" />
-
         {/* Metrics Grid */}
         <div className="grid grid-cols-2 gap-2 p-2 bg-slate-950/60 rounded-lg border border-white/5 text-[10px] font-mono mb-2">
+          {/* OPERADORES */}
           <div>
             <span className="text-slate-500 block uppercase font-bold text-[9px]">OPERADORES</span>
-            <div className="flex items-center gap-1 text-slate-200 font-bold">
-              <Users className="w-3 h-3 text-emerald-400" />
-              <span>{activeWorkers} ativos</span>
-            </div>
+            {editingField === 'activeWorkers' ? (
+              <input
+                type="number"
+                autoFocus
+                value={tempValue}
+                onChange={(e) => setTempValue(e.target.value)}
+                onBlur={() => saveEditing('activeWorkers')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') saveEditing('activeWorkers');
+                  if (e.key === 'Escape') setEditingField(null);
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-slate-900 border border-emerald-500 rounded px-1 py-0.5 text-[10px] text-white focus:outline-none w-full"
+              />
+            ) : (
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  startEditing('activeWorkers', String(activeWorkers));
+                }}
+                className="flex items-center gap-1 text-slate-200 font-bold cursor-pointer hover:text-emerald-300 hover:bg-emerald-500/10 rounded px-1 -mx-1 transition-all"
+                title="Clique para editar número de operadores"
+              >
+                <Users className="w-3 h-3 text-emerald-400 shrink-0" />
+                <span>{activeWorkers} ativos</span>
+              </div>
+            )}
           </div>
+
+          {/* MAQUINÁRIO */}
           <div>
             <span className="text-slate-500 block uppercase font-bold text-[9px]">MAQUINÁRIO</span>
-            <div className="flex items-center gap-1 text-slate-200 font-bold">
-              <Cpu className="w-3 h-3 text-emerald-400" />
-              <span>{activeMachineCount} máquinas</span>
-            </div>
+            {editingField === 'activeMachineCount' ? (
+              <input
+                type="number"
+                autoFocus
+                value={tempValue}
+                onChange={(e) => setTempValue(e.target.value)}
+                onBlur={() => saveEditing('activeMachineCount')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') saveEditing('activeMachineCount');
+                  if (e.key === 'Escape') setEditingField(null);
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-slate-900 border border-emerald-500 rounded px-1 py-0.5 text-[10px] text-white focus:outline-none w-full"
+              />
+            ) : (
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  startEditing('activeMachineCount', String(activeMachineCount));
+                }}
+                className="flex items-center gap-1 text-slate-200 font-bold cursor-pointer hover:text-emerald-300 hover:bg-emerald-500/10 rounded px-1 -mx-1 transition-all"
+                title="Clique para editar número de máquinas"
+              >
+                <Cpu className="w-3 h-3 text-emerald-400 shrink-0" />
+                <span>{activeMachineCount} máquinas</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -118,15 +238,9 @@ export const SectorNode: React.FC<SectorNodeProps> = ({
           }}
           className="w-full py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg flex items-center justify-center gap-2 text-emerald-400 text-[10px] font-bold uppercase tracking-wider transition-all hover:shadow-[0_0_15px_rgba(16,185,129,0.2)] group"
         >
-          <FileText className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
-          Emitir Relatório de Status
+          <FileText className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
+          <span>Relatório Completo do Setor</span>
         </button>
-      </div>
-
-      {/* Footer */}
-      <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[10px] font-mono text-slate-400">
-        <span>Status Operacional:</span>
-        <span className="text-emerald-400 font-bold">100% Ativo</span>
       </div>
     </div>
   );

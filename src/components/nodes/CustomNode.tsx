@@ -49,10 +49,10 @@ export const CustomNode: React.FC<CustomNodeProps> = ({
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-            <span className="text-[10px] font-mono text-slate-300">
-              {node.status || 'Ativo'}
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+            <span className="text-[10px] font-mono font-bold text-emerald-300">
+              Ativo
             </span>
           </div>
         </div>

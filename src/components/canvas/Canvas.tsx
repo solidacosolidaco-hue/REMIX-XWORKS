@@ -101,6 +101,7 @@ interface CanvasProps {
   onSetMode: (mode: CanvasMode) => void;
   onOpenProductsCatalog?: () => void;
   onOpenCalendarModal?: () => void;
+  onOpenEmployeeModal?: () => void;
   onOpenSectorReport?: (nodeId: string) => void;
   onConvertToOrder?: (budgetId: string) => void;
   theme?: CanvasTheme;
@@ -145,6 +146,7 @@ export const Canvas: React.FC<CanvasProps> = ({
   onSetMode,
   onOpenProductsCatalog,
   onOpenCalendarModal,
+  onOpenEmployeeModal,
   onOpenSectorReport,
   onConvertToOrder,
 }) => {
@@ -970,6 +972,7 @@ export const Canvas: React.FC<CanvasProps> = ({
           onCreateNode={onCreateNode}
           onEnterConnectMode={() => onSetMode('connect')}
           onOpenProductsCatalog={onOpenProductsCatalog}
+          onOpenEmployeeModal={onOpenEmployeeModal}
           onChangeTheme={onChangeTheme}
           onCopySelected={() => onCopyNodes?.(selectedNodeIds)}
           onPaste={(coords) => onPasteNodes?.(coords)}

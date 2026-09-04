@@ -1878,7 +1878,7 @@ export function App() {
       y: resolved.y,
       width: defaultWidth,
       height: defaultHeight,
-      status: 'A Fazer',
+      status: 'Ativo',
       color: defaultColor,
       createdAt: '01/09/2026',
       updatedAt: '01/09/2026',
@@ -2907,6 +2907,7 @@ export function App() {
               onFitView={handleFitView}
               onSetMode={setCanvasMode}
               onOpenProductsCatalog={() => setIsProductsCatalogOpen(true)}
+              onOpenEmployeeModal={() => setIsEmployeeModalOpen(true)}
               onOpenCalendarModal={() => setIsImmersiveCalendarOpen(true)}
             />
           </CanvasProvider>

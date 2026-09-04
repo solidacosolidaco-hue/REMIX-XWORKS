@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { CanvasNode } from '../../types/canvas';
-import { ShieldCheck, Users, Award } from 'lucide-react';
-import { NodeProgressBar } from '../common/NodeProgressBar';
+import { ShieldCheck, Users, Award, Check } from 'lucide-react';
 import { NodeTimeFrame } from '../common/NodeTimeFrame';
 
 interface SupervisorNodeProps {
@@ -15,18 +14,40 @@ export const SupervisorNode: React.FC<SupervisorNodeProps> = ({
   onUpdateData,
   onUpdateTitle,
 }) => {
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [titleInput, setTitleInput] = useState(node.name || 'Encarregado de Produção');
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [tempValue, setTempValue] = useState('');
 
   const supervisorId = node.data.supervisorId || 'ENC-401';
   const managedSector = node.data.managedSector || 'Caldeiraria & Solda Especializada';
   const subordinatesCount = node.data.subordinatesCount ?? 14;
-  const certifications = node.data.certifications || ['NR-12', 'ISO 9001', 'Green Belt Six Sigma'];
+  const rawCertifications = node.data.certifications;
+  const certificationsStr = Array.isArray(rawCertifications)
+    ? rawCertifications.join(', ')
+    : typeof rawCertifications === 'string'
+    ? rawCertifications
+    : 'NR-12, ISO 9001, Green Belt Six Sigma';
 
-  const handleTitleSubmit = () => {
-    setIsEditingTitle(false);
-    if (titleInput.trim() && onUpdateTitle) {
-      onUpdateTitle(node.id, titleInput.trim());
+  const startEditing = (field: string, initialVal: string) => {
+    setEditingField(field);
+    setTempValue(initialVal);
+  };
+
+  const saveEditing = (field: string) => {
+    setEditingField(null);
+    const val = tempValue.trim();
+
+    if (field === 'title') {
+      if (val) onUpdateTitle?.(node.id, val);
+    } else if (field === 'supervisorId') {
+      onUpdateData?.(node.id, { supervisorId: val || 'ENC-401' });
+    } else if (field === 'managedSector') {
+      onUpdateData?.(node.id, { managedSector: val || 'Setor Geral' });
+    } else if (field === 'subordinatesCount') {
+      const parsed = parseInt(val, 10);
+      onUpdateData?.(node.id, { subordinatesCount: isNaN(parsed) ? 0 : parsed });
+    } else if (field === 'certifications') {
+      const certsArr = val ? val.split(',').map((s) => s.trim()).filter(Boolean) : [];
+      onUpdateData?.(node.id, { certifications: certsArr });
     }
   };
 
@@ -47,68 +68,174 @@ export const SupervisorNode: React.FC<SupervisorNodeProps> = ({
             </span>
           </div>
 
-          <span className="px-2 py-0.5 bg-amber-500/10 text-amber-300 border border-amber-500/30 rounded text-[9px] font-mono font-bold">
-            {supervisorId}
-          </span>
+          {/* Supervisor ID / Código Editable */}
+          {editingField === 'supervisorId' ? (
+            <input
+              type="text"
+              autoFocus
+              value={tempValue}
+              onChange={(e) => setTempValue(e.target.value)}
+              onBlur={() => saveEditing('supervisorId')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') saveEditing('supervisorId');
+                if (e.key === 'Escape') setEditingField(null);
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-900 border border-amber-500 rounded px-1.5 py-0.5 text-[9px] font-mono text-amber-300 focus:outline-none w-20"
+            />
+          ) : (
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                startEditing('supervisorId', supervisorId);
+              }}
+              className="px-2 py-0.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded text-[9px] font-mono font-bold cursor-pointer transition-all"
+              title="Clique para editar o código do encarregado"
+            >
+              {supervisorId}
+            </span>
+          )}
         </div>
 
         {/* Editable Title */}
-        {isEditingTitle ? (
-          <input
-            type="text"
-            autoFocus
-            value={titleInput}
-            onChange={(e) => setTitleInput(e.target.value)}
-            onBlur={handleTitleSubmit}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleTitleSubmit();
-            }}
-            className="bg-slate-900 border border-amber-500/50 rounded px-1.5 py-0.5 text-xs text-white font-semibold focus:outline-none w-full mb-1"
-          />
+        {editingField === 'title' ? (
+          <div className="flex items-center gap-1 mb-1" onClick={(e) => e.stopPropagation()}>
+            <input
+              type="text"
+              autoFocus
+              value={tempValue}
+              onChange={(e) => setTempValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') saveEditing('title');
+                if (e.key === 'Escape') setEditingField(null);
+              }}
+              className="bg-slate-900 border border-amber-500 rounded px-2 py-1 text-xs text-white font-semibold focus:outline-none w-full"
+            />
+            <button
+              type="button"
+              onClick={() => saveEditing('title')}
+              className="p-1 rounded bg-amber-600 text-slate-950 hover:bg-amber-500 shrink-0 font-bold"
+            >
+              <Check className="w-3.5 h-3.5" />
+            </button>
+          </div>
         ) : (
           <h3
             onClick={(e) => {
               e.stopPropagation();
-              setIsEditingTitle(true);
+              startEditing('title', node.name || 'Encarregado');
             }}
-            className="font-bold text-sm text-white mb-0.5 leading-snug cursor-pointer hover:underline hover:text-amber-300 transition-colors"
+            className="font-bold text-sm text-white mb-0.5 leading-snug cursor-pointer hover:text-amber-300 hover:bg-amber-500/10 rounded px-1 -mx-1 transition-all flex items-center justify-between"
             title="Clique para editar o nome do encarregado"
           >
-            {node.name}
+            <span>{node.name}</span>
+            <span className="text-[10px] text-amber-400 opacity-60">✏️</span>
           </h3>
         )}
 
-        <p className="text-xs text-slate-300 font-medium mb-1 truncate">
-          Setor: {managedSector}
-        </p>
+        {/* Managed Sector Editable */}
+        {editingField === 'managedSector' ? (
+          <input
+            type="text"
+            autoFocus
+            value={tempValue}
+            onChange={(e) => setTempValue(e.target.value)}
+            onBlur={() => saveEditing('managedSector')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') saveEditing('managedSector');
+              if (e.key === 'Escape') setEditingField(null);
+            }}
+            onClick={(e) => e.stopPropagation()}
+            placeholder="Nome do Setor"
+            className="bg-slate-900 border border-amber-500 rounded px-1.5 py-0.5 text-xs text-white focus:outline-none w-full mb-2"
+          />
+        ) : (
+          <p
+            onClick={(e) => {
+              e.stopPropagation();
+              startEditing('managedSector', managedSector);
+            }}
+            className="text-xs text-slate-300 font-medium mb-2 truncate cursor-pointer hover:text-amber-300 hover:bg-amber-500/10 rounded px-1 -mx-1 transition-all"
+            title="Clique para editar o setor gerido"
+          >
+            Setor: <span className="text-white font-semibold">{managedSector}</span>
+          </p>
+        )}
 
         {/* Prazo Inicial e Prazo Final do Quadro */}
         <NodeTimeFrame node={node} onUpdateData={onUpdateData} className="mb-2" />
 
-        {/* Content Progress Bar */}
-        <NodeProgressBar node={node} onUpdateData={onUpdateData} className="mb-2" />
-
         {/* Specs Grid */}
         <div className="grid grid-cols-2 gap-2 p-2 bg-slate-950/60 rounded-lg border border-white/5 text-[10px] font-mono">
+          {/* EQUIPE / Subordinados */}
           <div>
             <span className="text-slate-500 block uppercase font-bold text-[9px]">EQUIPE</span>
-            <div className="flex items-center gap-1 text-slate-200 font-bold">
-              <Users className="w-3 h-3 text-amber-400" />
-              <span>{subordinatesCount} func.</span>
-            </div>
+            {editingField === 'subordinatesCount' ? (
+              <input
+                type="number"
+                autoFocus
+                value={tempValue}
+                onChange={(e) => setTempValue(e.target.value)}
+                onBlur={() => saveEditing('subordinatesCount')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') saveEditing('subordinatesCount');
+                  if (e.key === 'Escape') setEditingField(null);
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-slate-900 border border-amber-500 rounded px-1 py-0.5 text-[10px] text-white focus:outline-none w-full font-mono"
+              />
+            ) : (
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  startEditing('subordinatesCount', String(subordinatesCount));
+                }}
+                className="flex items-center gap-1 text-slate-200 font-bold cursor-pointer hover:text-amber-300 hover:bg-amber-500/10 rounded px-1 -mx-1 transition-all"
+                title="Clique para editar quantidade de funcionários na equipe"
+              >
+                <Users className="w-3 h-3 text-amber-400 shrink-0" />
+                <span>{subordinatesCount} func.</span>
+              </div>
+            )}
           </div>
+
+          {/* CERTIFICAÇÕES */}
           <div>
             <span className="text-slate-500 block uppercase font-bold text-[9px]">CERTIFICAÇÕES</span>
-            <div className="flex items-center gap-1 text-slate-200 font-semibold truncate">
-              <Award className="w-3 h-3 text-amber-400 shrink-0" />
-              <span className="truncate">{certifications.join(', ')}</span>
-            </div>
+            {editingField === 'certifications' ? (
+              <input
+                type="text"
+                autoFocus
+                value={tempValue}
+                onChange={(e) => setTempValue(e.target.value)}
+                onBlur={() => saveEditing('certifications')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') saveEditing('certifications');
+                  if (e.key === 'Escape') setEditingField(null);
+                }}
+                onClick={(e) => e.stopPropagation()}
+                placeholder="Ex: NR-12, ISO 9001"
+                className="bg-slate-900 border border-amber-500 rounded px-1 py-0.5 text-[10px] text-white focus:outline-none w-full font-mono"
+              />
+            ) : (
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  startEditing('certifications', certificationsStr);
+                }}
+                className="flex items-center gap-1 text-slate-200 font-semibold truncate cursor-pointer hover:text-amber-300 hover:bg-amber-500/10 rounded px-1 -mx-1 transition-all"
+                title="Clique para editar certificações (separadas por vírgula)"
+              >
+                <Award className="w-3 h-3 text-amber-400 shrink-0" />
+                <span className="truncate">{certificationsStr}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* Footer */}
-      <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[10px] font-mono text-slate-400">
+      <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[10px] font-mono text-slate-400 mt-2">
         <span>Supervisão Operacional</span>
         <span className="text-amber-400 font-bold">Liderança OK</span>
       </div>

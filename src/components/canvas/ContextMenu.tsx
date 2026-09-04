@@ -25,6 +25,9 @@ import {
   Copy,
   ClipboardPaste,
   ZapOff,
+  UserCheck,
+  ShieldCheck,
+  UserPlus,
 } from 'lucide-react';
 
 interface ContextMenuProps {
@@ -38,6 +41,7 @@ interface ContextMenuProps {
   onCreateNode: (type: NodeType, coords: { x: number; y: number }) => void;
   onEnterConnectMode: () => void;
   onOpenProductsCatalog?: () => void;
+  onOpenEmployeeModal?: () => void;
   onChangeTheme?: (theme: CanvasTheme) => void;
   onCopySelected?: () => void;
   onPaste?: (coords: { x: number; y: number }) => void;
@@ -54,17 +58,39 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   onCreateNode,
   onEnterConnectMode,
   onOpenProductsCatalog,
+  onOpenEmployeeModal,
   onChangeTheme,
   onCopySelected,
   onPaste,
 }) => {
   const menuItems: {
-    type: NodeType | 'connect' | 'catalog';
+    type: NodeType | 'connect' | 'catalog' | 'employee_modal';
     label: string;
     icon: React.ReactNode;
     color: string;
     desc: string;
   }[] = [
+    {
+      type: 'employee',
+      label: 'Funcionário / Operador',
+      icon: <UserCheck className="w-4 h-4 text-blue-400" />,
+      color: 'hover:border-blue-500/40',
+      desc: 'Operador, RE, Cargo, Turno e Status',
+    },
+    {
+      type: 'supervisor',
+      label: 'Encarregado / Supervisor',
+      icon: <ShieldCheck className="w-4 h-4 text-amber-400" />,
+      color: 'hover:border-amber-500/40',
+      desc: 'Líder de Setor, Equipe e Liderança PCP',
+    },
+    {
+      type: 'employee_modal',
+      label: 'Central de RH / Funcionários',
+      icon: <UserPlus className="w-4 h-4 text-indigo-400" />,
+      color: 'hover:border-indigo-500/40',
+      desc: 'Gerenciar Cadastro e Equipe da Empresa',
+    },
     {
       type: 'customer',
       label: 'Cliente (CRM)',
@@ -271,6 +297,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                 onEnterConnectMode();
               } else if (item.type === 'catalog') {
                 onOpenProductsCatalog?.();
+              } else if (item.type === 'employee_modal') {
+                onOpenEmployeeModal?.();
               } else {
                 onCreateNode(item.type as NodeType, canvasCoordinates);
               }
